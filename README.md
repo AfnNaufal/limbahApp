@@ -54,7 +54,7 @@ APP_URL=http://localhost:8000
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=limbah_app
+DB_DATABASE=limbahapp
 DB_USERNAME=root
 DB_PASSWORD=
 ```
@@ -64,7 +64,7 @@ DB_PASSWORD=
 Buat database:
 ```bash
 # MySQL
-mysql -u root -e "CREATE DATABASE limbah_app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -e "CREATE DATABASE limbahapp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
 Jalankan migrations:
@@ -138,7 +138,7 @@ php artisan test                 # Run tests
 | `DB_CONNECTION` | mysql | Database type |
 | `DB_HOST` | 127.0.0.1 | Database host |
 | `DB_PORT` | 3306 | Database port |
-| `DB_DATABASE` | limbah_app | Database name |
+| `DB_DATABASE` | limbahapp | Database name |
 | `DB_USERNAME` | root | Database user |
 | `DB_PASSWORD` | | Database password |
 
