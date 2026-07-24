@@ -1,0 +1,380 @@
+import { useState, useMemo } from 'react'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line,
+} from 'recharts'
+import { useApp } from '../context'
+import {
+  B3_TRANSACTIONS, MONTHLY_B3_IN, MONTHLY_B3_OUT,
+  PIE_B3_IN, PIE_B3_OUT, STORAGE_ALERTS, NOTIFICATIONS,
+} from '../data'
+
+type TrendPeriod = 'weekly' | 'monthly' | 'yearly'
+
+const STATUS_COLORS = {
+  pending: '#f59e0b',
+  processed: '#3b82f6',
+  disposed: '#22c55e',
+}
+
+const YEARLY_DATA = [
+  { name: '2020', b3in: 8234.5, b3out: 7123.2 },
+  { name: '2021', b3in: 9456.8, b3out: 8234.6 },
+  { name: '2022', b3in: 10123.4, b3out: 9012.8 },
+  { name: '2023', b3in: 10178.3, b3out: 9079.4 },
+  { name: '2024', b3in: 11019.7, b3out: 9291.7 },
+]
+
+export default function B3Page() {
+  const { tokens, t, theme } = useApp()
+  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
+  const [filterCat, setFilterCat] = useState<'all' | 'b3in' | 'b3out'>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'processed' | 'disposed'>('all')
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo] = useState('')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 10
+
+  const isGlass = theme === 'frosted' || theme === 'liquid'
+  const filtered = useMemo(() => {
+    return B3_TRANSACTIONS.filter((tx) => {
+      if (filterCat !== 'all' && tx.category !== filterCat) return false
+      if (filterStatus !== 'all' && tx.status !== filterStatus) return false
+      if (filterFrom && tx.date < filterFrom) return false
+      if (filterTo && tx.date > filterTo) return false
+      if (search) {
+        const s = search.toLowerCase()
+        return (
+          tx.id.toLowerCase().includes(s) ||
+          tx.type.toLowerCase().includes(s) ||
+          tx.source.toLowerCase().includes(s) ||
+          tx.destination.toLowerCase().includes(s) ||
+          tx.manifest.toLowerCase().includes(s)
+        )
+      }
+      return true
+    })
+  }, [filterCat, filterStatus, filterFrom, filterTo, search])
+
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+
+  const trendData = trendPeriod === 'monthly'
+    ? MONTHLY_B3_IN.map((d, i) => ({ name: d.month, b3in: d.value, b3out: MONTHLY_B3_OUT[i]?.value ?? 0 }))
+    : trendPeriod === 'yearly'
+      ? YEARLY_DATA
+      : MONTHLY_B3_IN.slice(0, 4).map((d, i) => ({ name: `W${i + 1}`, b3in: d.value / 4, b3out: (MONTHLY_B3_OUT[i]?.value ?? 0) / 4 }))
+
+  const tooltipStyle = {
+    contentStyle: {
+      background: tokens.tooltipBg, border: `1px solid ${tokens.border}`,
+      borderRadius: '6px', color: tokens.tooltipText, fontSize: 12, fontFamily: tokens.fontFamily,
+    },
+    itemStyle: { color: tokens.tooltipText },
+    labelStyle: { color: tokens.tooltipText, fontWeight: 600 },
+  }
+
+  const cardStyle = {
+    background: tokens.card,
+    border: `1px solid ${tokens.cardBorder}`,
+    borderRadius: tokens.radius,
+    padding: '16px 18px',
+    boxShadow: tokens.shadow,
+    backdropFilter: isGlass ? tokens.glassBlur : undefined,
+    WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
+    fontFamily: tokens.fontFamily,
+  }
+
+  const exceeded = STORAGE_ALERTS.filter((a) => a.urgency === 'exceeded')
+  const warning = STORAGE_ALERTS.filter((a) => a.urgency === 'warning')
+
+  return (
+    <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
+
+      {/* Storage alerts */}
+      {STORAGE_ALERTS.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: tokens.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={tokens.warning} strokeWidth="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            {t('storageAlert')}
+            <span style={{ fontSize: 11, background: `${tokens.danger}22`, color: tokens.danger, padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+              {exceeded.length} terlampaui
+            </span>
+            <span style={{ fontSize: 11, background: `${tokens.warning}22`, color: tokens.warning, padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+              {warning.length} mendekati
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+            {STORAGE_ALERTS.map((alert) => {
+              const urgColor = alert.urgency === 'exceeded' ? tokens.danger : tokens.warning
+              const pct = alert.currentStorageKg && alert.storageCapacityKg
+                ? Math.min(100, Math.round((alert.currentStorageKg / alert.storageCapacityKg) * 100))
+                : 0
+              return (
+                <div key={alert.id} style={{
+                  ...cardStyle,
+                  borderLeft: `3px solid ${urgColor}`,
+                  padding: '12px 14px',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: tokens.text }}>{alert.wasteCode}</div>
+                      <div style={{ fontSize: 11, color: tokens.textMuted }}>{alert.type}</div>
+                    </div>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                      background: `${urgColor}22`, color: urgColor,
+                    }}>
+                      {alert.urgency === 'exceeded' ? t('exceededLimit') : t('approachingLimit')}
+                    </span>
+                  </div>
+                  {alert.storageCapacityKg && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, color: tokens.textMuted }}>{t('currentStorage')}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: tokens.text }}>{pct}%</span>
+                      </div>
+                      <div style={{ height: 6, background: `${urgColor}20`, borderRadius: 3 }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: urgColor, borderRadius: 3, transition: 'width 0.5s' }} />
+                      </div>
+                      <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>
+                        {alert.currentStorageKg?.toFixed(1)} / {alert.storageCapacityKg} kg
+                        {alert.storageDeadlineDays !== undefined && (
+                          <span style={{ marginLeft: 8, color: urgColor, fontWeight: 600 }}>
+                            {alert.storageDeadlineDays < 0
+                              ? `${Math.abs(alert.storageDeadlineDays)} hari terlampau`
+                              : `${alert.storageDeadlineDays} hari tersisa`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Charts row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px 1fr', gap: 14, marginBottom: 20 }}>
+        {/* Bar: B3 In vs Out */}
+        <div style={cardStyle}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Perbandingan B3 Masuk vs Keluar (Bulanan)
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={MONTHLY_B3_IN.map((d, i) => ({ name: d.month, b3in: d.value, b3out: MONTHLY_B3_OUT[i]?.value ?? 0 }))} barSize={10}>
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
+              <Tooltip {...tooltipStyle} />
+              <Bar dataKey="b3in" fill={tokens.chartB3In} radius={[2, 2, 0, 0]} name="B3 Masuk" />
+              <Bar dataKey="b3out" fill={tokens.chartB3Out} radius={[2, 2, 0, 0]} name="B3 Keluar" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Pie charts */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ ...cardStyle, flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Sumber B3 Masuk
+            </div>
+            <ResponsiveContainer width="100%" height={80}>
+              <PieChart>
+                <Pie data={PIE_B3_IN} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
+                  {PIE_B3_IN.map((_, i) => (
+                    <Cell key={i} fill={[tokens.chartB3In, tokens.chartB3Out, tokens.accent, tokens.warning, tokens.success, '#a78bfa'][i % 6]!} />
+                  ))}
+                </Pie>
+                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ ...cardStyle, flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Tujuan B3 Keluar
+            </div>
+            <ResponsiveContainer width="100%" height={80}>
+              <PieChart>
+                <Pie data={PIE_B3_OUT} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
+                  {PIE_B3_OUT.map((_, i) => (
+                    <Cell key={i} fill={[tokens.chartB3Out, tokens.accent, tokens.chartDomMorning, tokens.warning, '#a78bfa'][i % 5]!} />
+                  ))}
+                </Pie>
+                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Trend */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tren</div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(['weekly', 'monthly', 'yearly'] as TrendPeriod[]).map((p) => (
+                <button key={p} onClick={() => setTrendPeriod(p)} style={{
+                  padding: '2px 7px', borderRadius: 3, border: `1px solid ${tokens.border}`,
+                  background: trendPeriod === p ? tokens.primary : 'transparent',
+                  color: trendPeriod === p ? tokens.textInverse : tokens.textMuted,
+                  fontSize: 10, cursor: 'pointer', fontFamily: tokens.fontFamily,
+                }}>
+                  {p === 'weekly' ? 'Minggu' : p === 'monthly' ? 'Bulan' : 'Tahun'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={trendData}>
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
+              <Tooltip {...tooltipStyle} />
+              <Line type="monotone" dataKey="b3in" stroke={tokens.chartB3In} strokeWidth={2} dot={false} name="B3 Masuk" />
+              <Line type="monotone" dataKey="b3out" stroke={tokens.chartB3Out} strokeWidth={2} dot={false} name="B3 Keluar" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text }}>{t('allTransactions')} — B3</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input type="text" placeholder={t('search')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              style={{ padding: '5px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, width: 180, outline: 'none' }} />
+            <select value={filterCat} onChange={(e) => { setFilterCat(e.target.value as typeof filterCat); setPage(1) }}
+              style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, cursor: 'pointer' }}>
+              <option value="all">Semua</option>
+              <option value="b3in">B3 Masuk</option>
+              <option value="b3out">B3 Keluar</option>
+            </select>
+            <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value as typeof filterStatus); setPage(1) }}
+              style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, cursor: 'pointer' }}>
+              <option value="all">{t('allStatuses')}</option>
+              <option value="pending">{t('pending')}</option>
+              <option value="processed">{t('processed')}</option>
+              <option value="disposed">{t('disposed')}</option>
+            </select>
+            <input type="date" value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1) }}
+              style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily }} />
+            <input type="date" value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1) }}
+              style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily }} />
+            {(search || filterCat !== 'all' || filterStatus !== 'all' || filterFrom || filterTo) && (
+              <button onClick={() => { setSearch(''); setFilterCat('all'); setFilterStatus('all'); setFilterFrom(''); setFilterTo(''); setPage(1) }}
+                style={{ padding: '5px 10px', background: `${tokens.danger}15`, border: `1px solid ${tokens.danger}40`, borderRadius: tokens.radius, fontSize: 12, color: tokens.danger, cursor: 'pointer', fontFamily: tokens.fontFamily }}>
+                {t('reset')}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: tokens.textMuted, fontSize: 14 }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
+            {t('emptyState')}
+          </div>
+        ) : (
+          <>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: tokens.fontFamily }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid ${tokens.border}` }}>
+                    {['ID', t('date'), t('type'), t('source'), t('destination'), t('amount'), t('status'), 'Manifest'].map((h) => (
+                      <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: tokens.textMuted, fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map((tx, i) => (
+                    <tr key={tx.id} style={{ borderBottom: `1px solid ${tokens.border}`, background: i % 2 === 0 ? 'transparent' : `${tokens.border}40`, transition: 'background 0.1s' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = `${tokens.primary}10` }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : `${tokens.border}40` }}>
+                      <td style={{ padding: '8px 10px', color: tokens.primary, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{tx.id}</td>
+                      <td style={{ padding: '8px 10px', color: tokens.text, whiteSpace: 'nowrap' }}>{tx.date}</td>
+                      <td style={{ padding: '8px 10px', color: tokens.text }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: tx.category === 'b3in' ? tokens.chartB3In : tokens.chartB3Out, flexShrink: 0 }} />
+                          {tx.type}
+                        </div>
+                      </td>
+                      <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.source}</td>
+                      <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.destination}</td>
+                      <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                        {tx.amountKg.toFixed(1)} kg
+                      </td>
+                      <td style={{ padding: '8px 10px' }}>
+                        <span style={{
+                          fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
+                          background: `${STATUS_COLORS[tx.status]}22`,
+                          color: STATUS_COLORS[tx.status],
+                        }}>{t(tx.status)}</span>
+                      </td>
+                      <td style={{ padding: '8px 10px', color: tokens.textMuted, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{tx.manifest}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: `1px solid ${tokens.border}` }}>
+              <span style={{ fontSize: 12, color: tokens.textMuted }}>
+                Menampilkan {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} dari {filtered.length} data
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+                  style={{ padding: '4px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: page === 1 ? 'default' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontFamily: tokens.fontFamily }}>
+                  ‹ Prev
+                </button>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i
+                  return (
+                    <button key={p} onClick={() => setPage(p)} style={{
+                      padding: '4px 8px', background: p === page ? tokens.primary : tokens.inputBg,
+                      border: `1px solid ${p === page ? tokens.primary : tokens.border}`,
+                      borderRadius: tokens.radius, fontSize: 12,
+                      color: p === page ? tokens.textInverse : tokens.text,
+                      cursor: 'pointer', fontFamily: tokens.fontFamily, minWidth: 30,
+                    }}>{p}</button>
+                  )
+                })}
+                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                  style={{ padding: '4px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: page === totalPages ? 'default' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontFamily: tokens.fontFamily }}>
+                  Next ›
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Recent Activity */}
+      <div style={{ ...cardStyle, marginTop: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text, marginBottom: 14 }}>{t('recentActivity')}</div>
+        {NOTIFICATIONS.filter((n) => n.type === 'b3in' || n.type === 'b3out' || n.type === 'alert').map((n) => (
+          <div key={n.id} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: `1px solid ${tokens.border}` }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+              background: n.type === 'alert' ? `${tokens.danger}20` : n.type === 'b3in' ? `${tokens.chartB3In}20` : `${tokens.chartB3Out}20`,
+              color: n.type === 'alert' ? tokens.danger : n.type === 'b3in' ? tokens.chartB3In : tokens.chartB3Out,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+            }}>
+              {n.type === 'alert' ? '⚠' : n.type === 'b3in' ? '↓' : '↑'}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: tokens.text }}>{n.title}</div>
+              <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2 }}>{n.message}</div>
+              <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>
+                {new Date(n.timestamp).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
