@@ -1,15 +1,17 @@
 # Limbah App - Monitoring Limbah EHS
 
-Sistem pemantauan limbah fasilitas B3 dan domestik dengan dashboard real-time yang dibangun menggunakan **Laravel 13 + React 19 + Tailwind CSS**.
+Sistem pemantauan limbah fasilitas B3 dan domestik dengan dashboard real-time yang dibangun menggunakan **Laravel 11 + React 19 + Tailwind CSS v4**. Sistem ini mengintegrasikan frontend React dengan REST API Laravel & Database MySQL secara terpusat.
 
 ## 📋 Requirement
 
-- **PHP** 8.2 atau lebih tinggi
-- **Node.js** 18 atau lebih tinggi
+- **PHP** 8.2 atau lebih tinggi (Rekomendasi PHP 8.3+)
+- **Node.js** 18 atau lebih tinggi (Rekomendasi Node 22+)
 - **npm** 9 atau lebih tinggi
 - **Composer** 2.0 atau lebih tinggi
-- **Database**: MySQL 8.0 atau PostgreSQL 13+
+- **Database**: MySQL 8.0+ atau MariaDB 10.5+
 - **Git**
+
+---
 
 ## 🚀 Quick Start
 
@@ -34,7 +36,7 @@ npm install
 
 ### 3. Setup Environment
 
-Buat file `.env`:
+Buat file `.env` dari template:
 ```bash
 cp .env.example .env
 ```
@@ -44,7 +46,7 @@ Generate application key:
 php artisan key:generate
 ```
 
-Update konfigurasi di `.env` (yang penting):
+Update konfigurasi database di file `.env`:
 ```env
 APP_NAME="Limbah App"
 APP_ENV=local
@@ -59,20 +61,21 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-### 4. Setup Database
+### 4. Setup Database & Seeder
 
-Buat database:
-```bash
-# MySQL
-mysql -u root -e "CREATE DATABASE limbahapp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+Buat database MySQL:
+```sql
+CREATE DATABASE limbahapp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-Jalankan migrations:
+Jalankan migrations dan seeders data awal:
 ```bash
-php artisan migrate
+php artisan migrate --seed
 ```
 
 ### 5. Jalankan Aplikasi
+
+Jalankan server dalam dua jendela terminal tersendiri:
 
 **Terminal 1 - Vite Dev Server (Hot Reload):**
 ```bash
@@ -84,201 +87,126 @@ npm run dev
 php artisan serve
 ```
 
-Buka browser: **http://localhost:8000**
+Buka browser di alamat: **`http://localhost:8000`**
+
+---
 
 ## 📁 Project Structure
 
 ```
 limbahApp/
+├── app/                     # Controller API, Model, Service, & Resource Laravel
+│   ├── Http/Controllers/Api # API Controllers (Dashboard, B3, Domestic, Notifications)
+│   ├── Http/Resources/      # JSON API Serializers
+│   ├── Models/              # Eloquent Models (B3Transaction, DomesticTransaction, etc.)
+│   └── Services/            # Business Logic Services
+├── database/                # Migrations & Seeders
 ├── resources/
-│   ├── css/                 # Tailwind styles
-│   ├── js/                  # Laravel entry point (React)
-│   ├── views/               # Blade templates (minimal)
-│   └── frontend/            # React application
-│       ├── src/
-│       │   ├── components/  # React components
-│       │   ├── context.tsx  # State management
-│       │   ├── theme.ts     # Theme configuration
-│       │   ├── i18n.ts      # Internationalization
-│       │   └── main.tsx     # React entry
-│       └── package.json
-├── app/                     # Laravel application code
-├── routes/                  # Web routes
-├── public/build/            # Compiled assets (Vite output)
-├── vite.config.js           # Vite + Laravel configuration
-├── package.json             # Node dependencies
+│   ├── css/                 # Tailwind CSS styles
+│   ├── js/                  # Laravel entry point (React createRoot)
+│   ├── views/               # Blade template (welcome.blade.php + @viteReactRefresh)
+│   └── frontend/            # Aplikasi React + TypeScript
+│       └── src/
+│           ├── api.ts       # API Integration Service (fetch wrapper)
+│           ├── components/  # React Components (Dashboard, B3Page, DomesticPage, etc.)
+│           ├── context.tsx  # Global State Management & Theme Context
+│           ├── data.ts      # Fallback Data & Interfaces
+│           ├── i18n.ts      # Internationalization (ID, AR)
+│           └── theme.ts     # Multi-theme design tokens
+├── routes/
+│   ├── api.php              # REST API Routes (/api/*)
+│   └── web.php              # Web Route (serving React SPA)
+├── vite.config.js           # Vite + Laravel plugin configuration
+├── package.json             # Frontend dependencies
 └── composer.json            # PHP dependencies
 ```
+
+---
+
+## 🔌 API Endpoints
+
+Aplikasi ini menggunakan REST API bawaan Laravel (`/api/*`):
+
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| `GET` | `/api/dashboard/summary` | Ringkasan metrik KPI, statistik B3, Domestik, & Alert |
+| `GET` | `/api/dashboard/monthly-trends` | Data tren bulanan limbah B3 & Domestik |
+| `GET` | `/api/b3-transactions` | Daftar transaksi Limbah B3 (dengan filter & pagination) |
+| `POST` | `/api/b3-transactions` | Menambah transaksi B3 baru ke database |
+| `GET` | `/api/domestic-transactions` | Daftar transaksi Limbah Domestik (Sesi Pagi & Sore) |
+| `POST` | `/api/domestic-transactions` | Menambah transaksi Domestik baru ke database |
+| `GET` | `/api/waste-categories` | Daftar kategori limbah B3 & Domestik |
+| `GET` | `/api/notifications` | Notifikasi & alert sistem |
+
+---
 
 ## 🔧 Development Commands
 
 ### Frontend (React + Vite)
 ```bash
-npm run dev       # Run with hot reload
-npm run build     # Production build
-npm run format    # Format code
+npm run dev       # Jalankan server Vite dengan Hot Module Replacement (HMR)
+npm run build     # Kompilasi aset produksi (production build)
 ```
 
 ### Backend (Laravel)
 ```bash
-php artisan migrate              # Run migrations
-php artisan serve                # Start dev server
-php artisan tinker               # Laravel REPL
-php artisan test                 # Run tests
+php artisan migrate              # Jalankan migrasi tabel database
+php artisan db:seed              # Isi database dengan data sampel seeder
+php artisan serve                # Jalankan server development Laravel
+php artisan test                 # Jalankan unit & feature tests
 ```
 
-## ⚙️ Environment Variables
-
-| Variable | Default | Deskripsi |
-|----------|---------|-----------|
-| `APP_NAME` | Limbah App | Nama aplikasi |
-| `APP_ENV` | local | Environment |
-| `APP_DEBUG` | true | Debug mode |
-| `APP_URL` | http://localhost:8000 | Base URL |
-| `DB_CONNECTION` | mysql | Database type |
-| `DB_HOST` | 127.0.0.1 | Database host |
-| `DB_PORT` | 3306 | Database port |
-| `DB_DATABASE` | limbahapp | Database name |
-| `DB_USERNAME` | root | Database user |
-| `DB_PASSWORD` | | Database password |
+---
 
 ## 🐛 Troubleshooting
 
-### Layar Blank saat Diakses
+### Layar Blank Saat Membuka Aplikasi
 
-**Penyebab**: Vite dev server belum running atau assets belum di-compile
-
-**Solusi**:
-1. Pastikan Vite running di Terminal 1: `npm run dev`
-2. Pastikan Laravel running di Terminal 2: `php artisan serve`
-3. Clear cache Laravel:
+**Penyebab & Solusi**:
+1. **React Preamble Missing**: Pastikan directive `@viteReactRefresh` sudah terpasang sebelum `@vite(...)` di `resources/views/welcome.blade.php`.
+2. **Vite Server Belum Running**: Pastikan `npm run dev` aktif di Terminal 1.
+3. **Cache Laravel**: Jalankan pembersihan cache:
    ```bash
    php artisan cache:clear
    php artisan config:clear
    php artisan view:clear
    ```
-4. Buka browser console (F12) dan cek error messages
 
-### Node Module Issues
-```bash
-rm -rf node_modules package-lock.yaml
-npm install
-```
+### Runtime TypeError / Undefined Property
 
-### Composer Issues
-```bash
-composer update
-composer clear-cache
-```
+Jika terjadi layar blank saat membuka halaman seperti *Limbah B3*, pastikan data yang dipetakan dari API memiliki nilai *fallback* dan mendukung *null-safety* `(amountKg ?? weightKg ?? 0).toFixed(1)`.
 
-### Database Connection Error
+---
 
-1. Pastikan MySQL running
-2. Verify `.env` credentials
-3. Refresh migrations:
-   ```bash
-   php artisan migrate:refresh
-   ```
+## 🎨 Fitur Utama
 
-### Asset tidak Loading
+- ✅ **Live MySQL Integration**: Tersambung langsung ke database backend via REST API.
+- ✅ **Dashboard Analytics**: Grafik perbandingan B3 Masuk/Keluar & Domestik Organik/Anorganik.
+- ✅ **Multi-Theme Support**: Corporate, Frosted, Liquid, Flat, High Contrast, dan Night City.
+- ✅ **Dark & Light Mode**: Dukungan mode Terang, Gelap, dan AMOLED.
+- ✅ **Monitoring Limbah B3**: Tracking manifest, transporter, batas penyimpanan, & peringatan alert.
+- ✅ **Manajemen Limbah Domestik**: Monitoring sesi Pagi & Sore.
+- ✅ **Multi-Language Support**: Dukungan Bahasa Indonesia (ID) & Arab (AR).
 
-```bash
-# Production build
-npm run build
-
-# Development rebuild
-npm run dev
-```
-
-### Permission Denied
-
-```bash
-chmod -R 755 storage bootstrap/cache
-```
-
-## 📦 Production Deployment
-
-### Build Frontend
-```bash
-npm run build
-```
-
-### Install Composer (Production)
-```bash
-composer install --no-dev --optimize-autoloader
-```
-
-### Optimize Laravel
-```bash
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan optimize
-```
-
-### Database Migration
-```bash
-php artisan migrate --force
-```
-
-## 🎨 Features
-
-- ✅ Multi-theme support (Corporate, Frosted, Liquid, Flat, High Contrast, Night City)
-- ✅ Light/Dark/AMOLED mode
-- ✅ Real-time dashboard dengan charts
-- ✅ B3 Waste monitoring & tracking
-- ✅ Domestic waste management
-- ✅ Notification system
-- ✅ User settings & personalization
-- ✅ Fully responsive design
-- ✅ Multi-language support (ID, AR)
-- ✅ Dark mode optimization
+---
 
 ## 🛠️ Tech Stack
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Backend | Laravel | 13 |
-| PHP | PHP | 8.2+ |
-| Frontend | React | 19 |
+| Backend Framework | Laravel | 11 |
+| Programming Language | PHP | 8.2+ (PHP 8.3 Tested) |
+| Frontend Library | React | 19 |
 | Language | TypeScript | 5.7 |
 | Styling | Tailwind CSS | 4 |
-| Build | Vite | 8 |
-| Charts | Recharts | 3.10 |
-| Database | MySQL/PostgreSQL | 8.0+ |
-
-## 📝 Notes
-
-- Aplikasi mengintegrasikan React sebagai frontend framework utama
-- Laravel digunakan sebagai API & asset server
-- Semua styling menggunakan Tailwind CSS
-- Hot reload tersedia untuk development melalui Vite
-- Database menggunakan Laravel migrations
-
-## 👥 Contributing
-
-1. Create feature branch: `git checkout -b feature/YourFeature`
-2. Commit changes: `git commit -m 'Add YourFeature'`
-3. Push to branch: `git push origin feature/YourFeature`
-4. Open Pull Request
-
-## 📄 License
-
-Proprietary - EHS Division
-
-## 📞 Support
-
-Untuk bantuan atau pertanyaan, hubungi team lead atau buka issue di repository.
+| Build Tool | Vite | 8 |
+| Charting | Recharts | 3.10 |
+| Database | MySQL / MariaDB | 8.0+ |
 
 ---
 
-**Last Updated**: 2026-07-24  
-**Status**: Development
+## 📄 License & Status
 
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- **Last Updated**: 2026-07-27  
+- **Status**: Active Development  
+- **Owner**: EHS Division
