@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import { useApp } from '../context'
 import { getDashboardSummary, getMonthlyTrends, type DashboardSummaryData } from '../api'
+import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import {
   MONTHLY_B3_IN, MONTHLY_B3_OUT, MONTHLY_DOM_MORNING, MONTHLY_DOM_AFTERNOON,
   WEEKLY_B3_IN, WEEKLY_B3_OUT, WEEKLY_DOM_MORNING, WEEKLY_DOM_AFTERNOON,
@@ -29,6 +30,7 @@ interface CategoryConfig {
 function CardStat({ value, label, change, tokens }: {
   value: number; label: string; change: number; tokens: ReturnType<typeof useApp>['tokens']
 }) {
+  const { t } = useApp()
   const up = change >= 0
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -44,7 +46,9 @@ function CardStat({ value, label, change, tokens }: {
         }}>
           {up ? '▲' : '▼'} {Math.abs(change)}%
         </span>
-        <span style={{ fontSize: 11, color: tokens.textMuted }}>dari periode lalu</span>
+        <span style={{ fontSize: 11, color: tokens.textMuted }}>
+          {t('fromLastPeriod')}
+        </span>
       </div>
       <div style={{ fontSize: 12, color: tokens.textMuted }}>{label}</div>
     </div>
@@ -54,7 +58,7 @@ function CardStat({ value, label, change, tokens }: {
 function ChartCard({ title, children, tokens, onClick }: {
   title: string; children: React.ReactNode; tokens: ReturnType<typeof useApp>['tokens']; onClick?: () => void
 }) {
-  const { theme } = useApp()
+  const { theme, t } = useApp()
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
   return (
@@ -71,6 +75,7 @@ function ChartCard({ title, children, tokens, onClick }: {
         cursor: onClick ? 'pointer' : 'default',
         transition: 'transform 0.15s, box-shadow 0.15s',
         fontFamily: tokens.fontFamily,
+        minWidth: 0,
       }}
       onMouseEnter={(e) => {
         if (onClick) {
@@ -95,9 +100,14 @@ function ChartCard({ title, children, tokens, onClick }: {
 
 function TrendToggle({ value, onChange, tokens }: { value: TrendPeriod; onChange: (v: TrendPeriod) => void; tokens: ReturnType<typeof useApp>['tokens'] }) {
   const opts: TrendPeriod[] = ['weekly', 'monthly', 'yearly']
-  const labels: Record<TrendPeriod, string> = { weekly: 'Mingguan', monthly: 'Bulanan', yearly: 'Tahunan' }
+  const { t } = useApp()
+  const labels: Record<TrendPeriod, string> = {
+    weekly: t('weekly'),
+    monthly: t('monthly'),
+    yearly: t('yearly')
+  }
   return (
-    <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+    <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
       {opts.map((o) => (
         <button key={o} onClick={(e) => { e.stopPropagation(); onChange(o) }}
           style={{
@@ -119,8 +129,10 @@ function CategorySection({
   config: CategoryConfig; tokens: ReturnType<typeof useApp>['tokens']; onCardClick: (id: string) => void
 }) {
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
-  const { theme } = useApp()
+  const { theme, t } = useApp()
   const isNight = theme === 'nightcity'
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
 
   const trendData = trendPeriod === 'monthly'
     ? config.monthlyData
@@ -141,36 +153,39 @@ function CategorySection({
     labelStyle: { color: tokens.tooltipText, fontWeight: 600 },
   }
 
+  const rowColumns = isMobile ? '1fr' : isTablet ? '1fr 1fr' : '220px 1fr 200px 1fr'
+
   return (
     <div style={{ marginBottom: 28 }}>
       {/* Section header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ width: 4, height: 20, background: config.color, borderRadius: 2, boxShadow: isNight ? `0 0 8px ${config.color}` : undefined }} />
         <h2 style={{ fontSize: 15, fontWeight: 700, color: tokens.text, margin: 0, fontFamily: tokens.fontFamily }}>
           {config.labelKey}
         </h2>
-        <div style={{ fontSize: 12, color: tokens.textMuted }}>{config.stats.entries} entri</div>
+        <div style={{ fontSize: 12, color: tokens.textMuted }}>
+          {config.stats.entries} {t('entries')}
+        </div>
       </div>
 
       {/* Row: summary card + bar + pie + trend */}
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 200px 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: rowColumns, gap: 12 }}>
         {/* Summary card */}
-        <ChartCard title="Ringkasan" tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title={t('summary')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: `${config.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ width: 16, height: 16, borderRadius: '50%', background: config.color }} />
             </div>
             <CardStat
               value={config.stats.total}
-              label={config.stats.entries + ' transaksi'}
-              change={config.stats.change}
+              label={`${config.stats.entries} ${t('transactions')}`} change={config.stats.change}
               tokens={tokens}
             />
           </div>
         </ChartCard>
 
         {/* Bar chart */}
-        <ChartCard title="Grafik Batang" tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title={t('barChart')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <ResponsiveContainer width="100%" height={120}>
             <BarChart data={config.barData} barSize={14} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
@@ -183,7 +198,7 @@ function CategorySection({
         </ChartCard>
 
         {/* Pie chart */}
-        <ChartCard title="Distribusi" tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title={t('distribution')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <ResponsiveContainer width="100%" height={120}>
             <PieChart>
               <Pie data={config.pieData} cx="50%" cy="50%" innerRadius={30} outerRadius={50}
@@ -199,7 +214,7 @@ function CategorySection({
         </ChartCard>
 
         {/* Trend chart */}
-        <ChartCard title="Tren" tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title={t('trend')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <TrendToggle value={trendPeriod} onChange={setTrendPeriod} tokens={tokens} />
           <ResponsiveContainer width="100%" height={96}>
             <LineChart data={trendData} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
@@ -219,12 +234,13 @@ function CategorySection({
 function QuickPreview({ id, onClose, onOpenFull }: { id: string; onClose: () => void; onOpenFull: () => void }) {
   const { tokens, t, theme } = useApp()
   const isGlass = theme === 'frosted' || theme === 'liquid'
+  const isMobile = useIsMobile()
 
   const labels: Record<string, string> = {
-    b3in: 'B3 Masuk',
-    b3out: 'B3 Keluar',
-    domMorning: 'Domestik Pagi',
-    domAfternoon: 'Domestik Sore',
+    b3in: t('b3In'),
+    b3out: t('b3Out'),
+    domMorning: t('domesticOrganic'),
+    domAfternoon: t('domesticInorganic'),
   }
 
   const stats = {
@@ -241,7 +257,9 @@ function QuickPreview({ id, onClose, onOpenFull }: { id: string; onClose: () => 
       zIndex: 50,
     }} onClick={onClose}>
       <div style={{
-        width: 400, height: '100%',
+        width: isMobile ? '100%' : 400,
+        maxWidth: '100vw',
+        height: '100%',
         background: isGlass ? (tokens.glassBg ?? tokens.card) : tokens.card,
         backdropFilter: isGlass ? tokens.glassBlur : undefined,
         WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
@@ -284,10 +302,12 @@ function QuickPreview({ id, onClose, onOpenFull }: { id: string; onClose: () => 
 }
 
 export default function Dashboard() {
-  const { tokens, setPage } = useApp()
+  const { tokens, setPage, t } = useApp()
   const [preview, setPreview] = useState<string | null>(null)
   const [summaryData, setSummaryData] = useState<DashboardSummaryData | null>(null)
   const [loading, setLoading] = useState(true)
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
 
   useEffect(() => {
     getDashboardSummary()
@@ -309,7 +329,7 @@ export default function Dashboard() {
   const categories: CategoryConfig[] = [
     {
       id: 'b3in',
-      labelKey: 'B3 Masuk (Hazardous Waste — In)',
+      labelKey: t('b3InTitle'),
       color: tokens.chartB3In,
       barData: MONTHLY_B3_IN.map((d) => ({ name: d.month, value: d.value })),
       weeklyData: WEEKLY_B3_IN.map((d) => ({ name: d.week, value: d.value })),
@@ -320,7 +340,7 @@ export default function Dashboard() {
     },
     {
       id: 'b3out',
-      labelKey: 'B3 Keluar (Hazardous Waste — Out)',
+      labelKey: t('b3OutTitle'),
       color: tokens.chartB3Out,
       barData: MONTHLY_B3_OUT.map((d) => ({ name: d.month, value: d.value })),
       weeklyData: WEEKLY_B3_OUT.map((d) => ({ name: d.week, value: d.value })),
@@ -331,7 +351,7 @@ export default function Dashboard() {
     },
     {
       id: 'domMorning',
-      labelKey: 'Limbah Domestik — Organik',
+      labelKey: t('domesticOrganicTitle'),
       color: tokens.chartDomMorning,
       barData: MONTHLY_DOM_MORNING.map((d) => ({ name: d.month, value: d.value })),
       weeklyData: WEEKLY_DOM_MORNING.map((d) => ({ name: d.week, value: d.value })),
@@ -342,7 +362,7 @@ export default function Dashboard() {
     },
     {
       id: 'domAfternoon',
-      labelKey: 'Limbah Domestik — Anorganik',
+      labelKey: t('domesticInorganicTitle'),
       color: tokens.chartDomAfternoon,
       barData: MONTHLY_DOM_AFTERNOON.map((d) => ({ name: d.month, value: d.value })),
       weeklyData: WEEKLY_DOM_AFTERNOON.map((d) => ({ name: d.week, value: d.value })),
@@ -354,9 +374,10 @@ export default function Dashboard() {
   ]
 
   const isGlass = tokens.glassBg !== undefined
+  const kpiColumns = isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'
 
   return (
-    <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
+    <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
       {/* Live DB connection badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -367,18 +388,20 @@ export default function Dashboard() {
             boxShadow: loading ? '0 0 6px #f59e0b' : '0 0 6px #22c55e',
           }} />
           <span style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted }}>
-            {loading ? 'Menghubungkan ke Database MySQL...' : 'Terhubung ke Database Live (MySQL)'}
+            {loading
+              ? t('connectingDatabase')
+              : t('databaseConnected')}
           </span>
         </div>
       </div>
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: kpiColumns, gap: 12, marginBottom: 28 }}>
         {[
-          { label: 'B3 Masuk', value: b3InWeight, change: SUMMARY_STATS.b3In.change, color: tokens.chartB3In },
-          { label: 'B3 Keluar', value: b3OutWeight, change: SUMMARY_STATS.b3Out.change, color: tokens.chartB3Out },
-          { label: 'Domestik Organik', value: domOrganicWeight, change: SUMMARY_STATS.domMorning.change, color: tokens.chartDomMorning },
-          { label: 'Domestik Anorganik', value: domInorganicWeight, change: SUMMARY_STATS.domAfternoon.change, color: tokens.chartDomAfternoon },
+          { label: t('b3In'), value: b3InWeight, change: SUMMARY_STATS.b3In.change, color: tokens.chartB3In },
+          { label: t('b3Out'), value: b3OutWeight, change: SUMMARY_STATS.b3Out.change, color: tokens.chartB3Out },
+          { label: t('domesticOrganic'), value: domOrganicWeight, change: SUMMARY_STATS.domMorning.change, color: tokens.chartDomMorning },
+          { label: t('domesticInorganic'), value: domInorganicWeight, change: SUMMARY_STATS.domAfternoon.change, color: tokens.chartDomAfternoon },
         ].map(({ label, value, change, color }) => (
           <div key={label} style={{
             background: tokens.card,
@@ -391,6 +414,7 @@ export default function Dashboard() {
             borderTop: `3px solid ${color}`,
             cursor: 'pointer',
             transition: 'transform 0.15s',
+            minWidth: 0,
           }}
             onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
             onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}

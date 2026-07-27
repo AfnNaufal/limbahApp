@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import { useApp } from '../context'
 import { getDomesticTransactions } from '../api'
+import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import {
   DOMESTIC_TRANSACTIONS, MONTHLY_DOM_MORNING, MONTHLY_DOM_AFTERNOON,
   PIE_DOM_MORNING, PIE_DOM_AFTERNOON, NOTIFICATIONS,
@@ -39,6 +40,8 @@ export default function DomesticPage() {
   const [page, setPage] = useState(1)
   const [apiData, setApiData] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const PAGE_SIZE = 10
 
   useEffect(() => {
@@ -108,13 +111,16 @@ export default function DomesticPage() {
     backdropFilter: isGlass ? tokens.glassBlur : undefined,
     WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
     fontFamily: tokens.fontFamily,
+    minWidth: 0,
   }
 
+  const chartColumns = isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 220px 1fr'
+
   return (
-    <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
+    <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px 1fr', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: chartColumns, gap: 14, marginBottom: 20 }}>
         {/* Bar */}
         <div style={cardStyle}>
           <div style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -169,7 +175,7 @@ export default function DomesticPage() {
 
         {/* Trend */}
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tren</div>
             <div style={{ display: 'flex', gap: 4 }}>
               {(['weekly', 'monthly', 'yearly'] as TrendPeriod[]).map((p) => (
@@ -202,7 +208,7 @@ export default function DomesticPage() {
           <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text }}>{t('allTransactions')} — Domestik</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input type="text" placeholder={t('search')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              style={{ padding: '5px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, width: 160, outline: 'none' }} />
+              style={{ padding: '5px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, width: isMobile ? '100%' : 160, outline: 'none' }} />
             <select value={filterSession} onChange={(e) => { setFilterSession(e.target.value as typeof filterSession); setPage(1) }}
               style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, cursor: 'pointer' }}>
               <option value="all">{t('allSessions')}</option>
@@ -272,7 +278,7 @@ export default function DomesticPage() {
                 </tbody>
               </table>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: `1px solid ${tokens.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: `1px solid ${tokens.border}`, flexWrap: 'wrap', gap: 10 }}>
               <span style={{ fontSize: 12, color: tokens.textMuted }}>
                 {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} dari {filtered.length}
               </span>
@@ -306,7 +312,7 @@ export default function DomesticPage() {
               <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: `${tokens.chartDomMorning}20`, color: tokens.chartDomMorning, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
                 🏠
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: tokens.text }}>{n.title}</div>
                 <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2 }}>{n.message}</div>
                 <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>

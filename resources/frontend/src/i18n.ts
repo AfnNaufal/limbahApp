@@ -125,6 +125,22 @@ const ID: Translations = {
   wasteCode: 'Kode Limbah',
   handover: 'Serah Terima',
   transport: 'Pengangkut',
+  summary: 'Ringkasan',
+  distribution: 'Distribusi',
+  trend: 'Tren',
+  transactions: 'transaksi',
+  entries: 'entri',
+
+  connectingDatabase: 'Menghubungkan ke Database MySQL...',
+  databaseConnected: 'Terhubung ke Database Live (MySQL)',
+
+  domesticOrganic: 'Domestik Organik',
+  domesticInorganic: 'Domestik Anorganik',
+
+  b3InTitle: 'B3 Masuk (Limbah B3 — Masuk)',
+  b3OutTitle: 'B3 Keluar (Limbah B3 — Keluar)',
+  domesticOrganicTitle: 'Limbah Domestik — Organik',
+  domesticInorganicTitle: 'Limbah Domestik — Anorganik',
   manifest: 'Manifest',
 }
 
@@ -219,6 +235,22 @@ const EN_US: Translations = {
   wasteCode: 'Waste Code',
   handover: 'Handover',
   transport: 'Transport',
+  summary: 'Summary',
+  distribution: 'Distribution',
+  trend: 'Trend',
+  transactions: 'transactions',
+  entries: 'entries',
+
+  connectingDatabase: 'Connecting to MySQL Database...',
+  databaseConnected: 'Connected to Live Database (MySQL)',
+
+  domesticOrganic: 'Domestic Organic',
+  domesticInorganic: 'Domestic Inorganic',
+
+  b3InTitle: 'B3 In (Hazardous Waste — In)',
+  b3OutTitle: 'B3 Out (Hazardous Waste — Out)',
+  domesticOrganicTitle: 'Domestic Waste — Organic',
+  domesticInorganicTitle: 'Domestic Waste — Inorganic',
   manifest: 'Manifest',
 }
 
@@ -320,6 +352,22 @@ const ZH: Translations = {
   wasteCode: '废物代码',
   handover: '移交',
   transport: '运输',
+  summary: '摘要',
+  distribution: '分布',
+  trend: '趋势',
+  transactions: '笔',
+  entries: '条目',
+
+  connectingDatabase: '正在连接 MySQL 数据库...',
+  databaseConnected: '已连接到实时数据库 (MySQL)',
+
+  domesticOrganic: '生活垃圾（有机）',
+  domesticInorganic: '生活垃圾（无机）',
+
+  b3InTitle: 'B3 入库（危险废物）',
+  b3OutTitle: 'B3 出库（危险废物）',
+  domesticOrganicTitle: '生活垃圾 — 有机',
+  domesticInorganicTitle: '生活垃圾 — 无机',
   manifest: '清单',
 }
 

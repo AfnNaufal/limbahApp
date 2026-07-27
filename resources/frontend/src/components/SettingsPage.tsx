@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApp } from '../context'
 import { THEMES, type ThemeId, type ModeId } from '../theme'
 import { LANGUAGES } from '../i18n'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 function Section({ title, children, tokens }: { title: string; children: React.ReactNode; tokens: ReturnType<typeof useApp>['tokens'] }) {
   const { theme } = useApp()
@@ -16,6 +17,7 @@ function Section({ title, children, tokens }: { title: string; children: React.R
       backdropFilter: isGlass ? tokens.glassBlur : undefined,
       WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
       fontFamily: tokens.fontFamily,
+      minWidth: 0,
     }}>
       <h3 style={{ margin: '0 0 18px 0', fontSize: 14, fontWeight: 700, color: tokens.text }}>{title}</h3>
       {children}
@@ -61,6 +63,7 @@ export default function SettingsPage() {
   const [notifB3, setNotifB3] = useState(true)
   const [notifDomestic, setNotifDomestic] = useState(true)
   const [saved, setSaved] = useState(false)
+  const isMobile = useIsMobile()
 
   const handleSave = () => {
     setSaved(true)
@@ -77,12 +80,12 @@ export default function SettingsPage() {
       ]
 
   return (
-    <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 1000 }}>
+    <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, maxWidth: 1000 }}>
 
         {/* Theme */}
         <Section title={t('themeSettings')} tokens={tokens}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 10, marginBottom: 18 }}>
             {THEMES.map((th) => {
               const prev = THEME_PREVIEWS[th.id]
               const active = theme === th.id
@@ -131,10 +134,10 @@ export default function SettingsPage() {
           {/* Mode selector */}
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted, marginBottom: 8 }}>Mode Tampilan</div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {modesAvailable.map(({ id, label }) => (
                 <button key={id} onClick={() => setMode(id)} style={{
-                  flex: 1, padding: '8px', border: `2px solid ${mode === id ? tokens.primary : tokens.border}`,
+                  flex: isMobile ? '1 1 45%' : 1, padding: '8px', border: `2px solid ${mode === id ? tokens.primary : tokens.border}`,
                   borderRadius: tokens.radius, background: mode === id ? `${tokens.primary}15` : tokens.inputBg,
                   color: mode === id ? tokens.primary : tokens.text, cursor: 'pointer',
                   fontSize: 12, fontWeight: mode === id ? 600 : 400, fontFamily: tokens.fontFamily,
@@ -149,7 +152,7 @@ export default function SettingsPage() {
 
         {/* Language */}
         <Section title={t('languageSettings')} tokens={tokens}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
             {LANGUAGES.map((l) => {
               const active = lang === l.id
               return (
@@ -186,7 +189,7 @@ export default function SettingsPage() {
               { label: t('notifDomestic'), sub: 'Notifikasi untuk limbah domestik', value: notifDomestic, onChange: setNotifDomestic },
             ].map(({ label, sub, value, onChange }) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: tokens.text }}>{label}</div>
                   <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 2 }}>{sub}</div>
                 </div>
@@ -238,11 +241,12 @@ export default function SettingsPage() {
       </div>
 
       {/* Save button */}
-      <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', maxWidth: 1000 }}>
+      <div style={{ marginTop: 20, display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', maxWidth: 1000 }}>
         <button
           onClick={handleSave}
           style={{
             padding: '10px 28px',
+            width: isMobile ? '100%' : undefined,
             background: saved ? tokens.success : tokens.primary,
             color: tokens.textInverse,
             border: 'none',
@@ -254,6 +258,7 @@ export default function SettingsPage() {
             transition: 'all 0.2s',
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: 8,
           }}
         >

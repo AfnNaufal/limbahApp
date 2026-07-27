@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import { useApp } from '../context'
 import { getB3Transactions } from '../api'
+import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import {
   B3_TRANSACTIONS, MONTHLY_B3_IN, MONTHLY_B3_OUT,
   PIE_B3_IN, PIE_B3_OUT, STORAGE_ALERTS, NOTIFICATIONS,
@@ -41,6 +42,8 @@ export default function B3Page() {
   const [page, setPage] = useState(1)
   const [apiData, setApiData] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const PAGE_SIZE = 10
 
   useEffect(() => {
@@ -120,18 +123,21 @@ export default function B3Page() {
     backdropFilter: isGlass ? tokens.glassBlur : undefined,
     WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
     fontFamily: tokens.fontFamily,
+    minWidth: 0,
   }
 
   const exceeded = STORAGE_ALERTS.filter((a) => a.urgency === 'exceeded')
   const warning = STORAGE_ALERTS.filter((a) => a.urgency === 'warning')
 
+  const chartColumns = isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 220px 1fr'
+
   return (
-    <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
+    <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
 
       {/* Storage alerts */}
       {STORAGE_ALERTS.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: tokens.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: tokens.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={tokens.warning} strokeWidth="2">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
@@ -144,7 +150,7 @@ export default function B3Page() {
               {warning.length} mendekati
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
             {STORAGE_ALERTS.map((alert) => {
               const urgColor = alert.urgency === 'exceeded' ? tokens.danger : tokens.warning
               const pct = alert.currentStorageKg && alert.storageCapacityKg
@@ -197,7 +203,7 @@ export default function B3Page() {
       )}
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px 1fr', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: chartColumns, gap: 14, marginBottom: 20 }}>
         {/* Bar: B3 In vs Out */}
         <div style={cardStyle}>
           <div style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -250,7 +256,7 @@ export default function B3Page() {
 
         {/* Trend */}
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tren</div>
             <div style={{ display: 'flex', gap: 4 }}>
               {(['weekly', 'monthly', 'yearly'] as TrendPeriod[]).map((p) => (
@@ -283,7 +289,7 @@ export default function B3Page() {
           <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text }}>{t('allTransactions')} — B3</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input type="text" placeholder={t('search')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              style={{ padding: '5px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, width: 180, outline: 'none' }} />
+              style={{ padding: '5px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, width: isMobile ? '100%' : 180, outline: 'none' }} />
             <select value={filterCat} onChange={(e) => { setFilterCat(e.target.value as typeof filterCat); setPage(1) }}
               style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, cursor: 'pointer' }}>
               <option value="all">Semua</option>
@@ -357,11 +363,11 @@ export default function B3Page() {
                 </tbody>
               </table>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: `1px solid ${tokens.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: `1px solid ${tokens.border}`, flexWrap: 'wrap', gap: 10 }}>
               <span style={{ fontSize: 12, color: tokens.textMuted }}>
                 Menampilkan {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} dari {filtered.length} data
               </span>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
                   style={{ padding: '4px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: page === 1 ? 'default' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontFamily: tokens.fontFamily }}>
                   ‹ Prev
@@ -401,7 +407,7 @@ export default function B3Page() {
             }}>
               {n.type === 'alert' ? '⚠' : n.type === 'b3in' ? '↓' : '↑'}
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: tokens.text }}>{n.title}</div>
               <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2 }}>{n.message}</div>
               <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>

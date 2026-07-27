@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useApp, type PageId } from '../context'
 import { NOTIFICATIONS } from '../data'
 import type { Notification } from '../data'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 const PAGE_TITLES: Record<PageId, string> = {
   dashboard: 'dashboard',
@@ -10,7 +11,7 @@ const PAGE_TITLES: Record<PageId, string> = {
   settings: 'settings',
 }
 
-function NotificationPanel({ tokens }: { tokens: ReturnType<typeof useApp>['tokens'] }) {
+function NotificationPanel({ tokens, isMobile }: { tokens: ReturnType<typeof useApp>['tokens']; isMobile: boolean }) {
   const { t } = useApp()
   const [notes, setNotes] = useState<Notification[]>(NOTIFICATIONS)
   const unread = notes.filter((n) => !n.read).length
@@ -36,7 +37,8 @@ function NotificationPanel({ tokens }: { tokens: ReturnType<typeof useApp>['toke
         top: '100%',
         right: 0,
         marginTop: 8,
-        width: 340,
+        width: isMobile ? 'min(340px, calc(100vw - 28px))' : 340,
+        maxWidth: 'calc(100vw - 28px)',
         background: tokens.card,
         border: `1px solid ${tokens.cardBorder}`,
         borderRadius: tokens.radius,
@@ -91,7 +93,7 @@ function NotificationPanel({ tokens }: { tokens: ReturnType<typeof useApp>['toke
                 }}>
                   {typeIcon[n.type] ?? '•'}
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
                     <span style={{ fontSize: 13, fontWeight: n.read ? 400 : 600, color: tokens.text }}>{n.title}</span>
                     {!n.read && <div style={{ width: 7, height: 7, borderRadius: '50%', background: tokens.primary, flexShrink: 0 }} />}
@@ -111,12 +113,15 @@ function NotificationPanel({ tokens }: { tokens: ReturnType<typeof useApp>['toke
 }
 
 export default function Header() {
-  const { tokens, page, t, theme } = useApp()
+  const { tokens, page, t, theme, sidebarOpen, setSidebarOpen, isRTL } = useApp()
   const [showNotif, setShowNotif] = useState(false)
   const [year, setYear] = useState('2024')
   const [search, setSearch] = useState('')
+  // const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
+  // const searchRef = useRef<HTMLDivElement>(null)
   const unreadCount = NOTIFICATIONS.filter((n) => !n.read).length
+  const isMobile = useIsMobile()
 
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
@@ -125,10 +130,40 @@ export default function Header() {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setShowNotif(false)
       }
+      //if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+      //setMobileSearchOpen(false)
+      //}
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  const searchInput = (
+    <>
+      <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.4, pointerEvents: 'none' }}
+        width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={tokens.text} strokeWidth="2">
+        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input
+        type="text"
+        placeholder={t('search')}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        autoFocus={isMobile}
+        style={{
+          width: '100%',
+          padding: '6px 12px 6px 32px',
+          background: tokens.inputBg,
+          border: `1px solid ${tokens.border}`,
+          borderRadius: tokens.radius,
+          fontSize: 13,
+          color: tokens.text,
+          fontFamily: tokens.fontFamily,
+          outline: 'none',
+        }}
+      />
+    </>
+  )
 
   return (
     <header
@@ -136,8 +171,8 @@ export default function Header() {
         height: 56,
         display: 'flex',
         alignItems: 'center',
-        padding: '0 20px',
-        gap: 16,
+        padding: isMobile ? '0 14px' : '0 20px',
+        gap: isMobile ? 8 : 16,
         background: isGlass ? (tokens.glassBg ?? tokens.headerBg) : tokens.headerBg,
         backdropFilter: isGlass ? tokens.glassBlur : undefined,
         WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
@@ -145,46 +180,70 @@ export default function Header() {
         zIndex: 10,
         flexShrink: 0,
         fontFamily: tokens.fontFamily,
+        position: 'relative',
       }}
     >
+      {/* Mobile menu button — lives inside the header row so it centers naturally */}
+      {isMobile && (
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label="Open menu"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            border: `1px solid ${tokens.border}`,
+            background: tokens.inputBg,
+            color: tokens.text,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+      )}
+
       {/* Page title */}
-      <div style={{ fontSize: 16, fontWeight: 700, color: tokens.text, flex: '0 0 auto' }}>
+      <div style={{
+        fontSize: isMobile ? 14 : 16,
+        fontWeight: 700,
+        color: tokens.text,
+        flex: isMobile ? '0 1 auto' : '0 0 auto',
+        minWidth: isMobile ? 40 : undefined,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+      }}>
         {t(PAGE_TITLES[page])}
       </div>
 
-      {/* Search */}
-      <div style={{ flex: 1, maxWidth: 320, position: 'relative' }}>
-        <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.4, pointerEvents: 'none' }}
-          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={tokens.text} strokeWidth="2">
-          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-        <input
-          type="text"
-          placeholder={t('search')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '6px 12px 6px 32px',
-            background: tokens.inputBg,
-            border: `1px solid ${tokens.border}`,
-            borderRadius: tokens.radius,
-            fontSize: 13,
-            color: tokens.text,
-            fontFamily: tokens.fontFamily,
-            outline: 'none',
-          }}
-        />
-      </div>
+      {/* ===== NEW SEARCH BAR ===== */}
 
-      <div style={{ flex: 1 }} />
+      <div
+        style={{
+          marginLeft: "auto",
+          flex: 1,
+          maxWidth: isMobile ? 170 : 320,
+          position: "relative",
+          minWidth: 120,
+        }}
+      >
+        {searchInput}
+      </div>
 
       {/* Year filter */}
       <select
         value={year}
         onChange={(e) => setYear(e.target.value)}
         style={{
-          padding: '5px 10px',
+          padding: isMobile ? '5px 6px' : '5px 10px',
           background: tokens.inputBg,
           border: `1px solid ${tokens.border}`,
           borderRadius: tokens.radius,
@@ -193,6 +252,7 @@ export default function Header() {
           fontFamily: tokens.fontFamily,
           cursor: 'pointer',
           outline: 'none',
+          flexShrink: 0,
         }}
       >
         {['2022', '2023', '2024', '2025'].map((y) => (
@@ -201,7 +261,7 @@ export default function Header() {
       </select>
 
       {/* Notification bell */}
-      <div ref={notifRef} style={{ position: 'relative' }}>
+      <div ref={notifRef} style={{ position: 'relative', flexShrink: 0 }}>
         <button
           onClick={() => setShowNotif((v) => !v)}
           style={{
@@ -230,7 +290,7 @@ export default function Header() {
             }}>{unreadCount}</span>
           )}
         </button>
-        {showNotif && <NotificationPanel tokens={tokens} />}
+        {showNotif && <NotificationPanel tokens={tokens} isMobile={isMobile} />}
       </div>
 
       {/* User avatar */}
