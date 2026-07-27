@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
 import { useApp } from '../context'
+import { getDashboardSummary, getMonthlyTrends, type DashboardSummaryData } from '../api'
 import {
   MONTHLY_B3_IN, MONTHLY_B3_OUT, MONTHLY_DOM_MORNING, MONTHLY_DOM_AFTERNOON,
   WEEKLY_B3_IN, WEEKLY_B3_OUT, WEEKLY_DOM_MORNING, WEEKLY_DOM_AFTERNOON,
@@ -285,6 +286,25 @@ function QuickPreview({ id, onClose, onOpenFull }: { id: string; onClose: () => 
 export default function Dashboard() {
   const { tokens, setPage } = useApp()
   const [preview, setPreview] = useState<string | null>(null)
+  const [summaryData, setSummaryData] = useState<DashboardSummaryData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getDashboardSummary()
+      .then((data) => {
+        setSummaryData(data)
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error('Failed to load dashboard summary:', err)
+        setLoading(false)
+      })
+  }, [])
+
+  const b3InWeight = summaryData?.b3_in_weight_kg ?? SUMMARY_STATS.b3In.total
+  const b3OutWeight = summaryData?.b3_out_weight_kg ?? SUMMARY_STATS.b3Out.total
+  const domOrganicWeight = summaryData?.domestic_today_organic_kg ?? SUMMARY_STATS.domMorning.total
+  const domInorganicWeight = summaryData?.domestic_today_inorganic_kg ?? SUMMARY_STATS.domAfternoon.total
 
   const categories: CategoryConfig[] = [
     {
@@ -295,7 +315,7 @@ export default function Dashboard() {
       weeklyData: WEEKLY_B3_IN.map((d) => ({ name: d.week, value: d.value })),
       monthlyData: MONTHLY_B3_IN.map((d) => ({ name: d.month, value: d.value })),
       pieData: PIE_B3_IN,
-      stats: SUMMARY_STATS.b3In,
+      stats: { total: b3InWeight, change: SUMMARY_STATS.b3In.change, entries: summaryData?.b3_count_in ?? SUMMARY_STATS.b3In.entries },
       unit: 'kg',
     },
     {
@@ -306,29 +326,29 @@ export default function Dashboard() {
       weeklyData: WEEKLY_B3_OUT.map((d) => ({ name: d.week, value: d.value })),
       monthlyData: MONTHLY_B3_OUT.map((d) => ({ name: d.month, value: d.value })),
       pieData: PIE_B3_OUT,
-      stats: SUMMARY_STATS.b3Out,
+      stats: { total: b3OutWeight, change: SUMMARY_STATS.b3Out.change, entries: summaryData?.b3_count_out ?? SUMMARY_STATS.b3Out.entries },
       unit: 'kg',
     },
     {
       id: 'domMorning',
-      labelKey: 'Limbah Domestik — Sesi Pagi',
+      labelKey: 'Limbah Domestik — Organik',
       color: tokens.chartDomMorning,
       barData: MONTHLY_DOM_MORNING.map((d) => ({ name: d.month, value: d.value })),
       weeklyData: WEEKLY_DOM_MORNING.map((d) => ({ name: d.week, value: d.value })),
       monthlyData: MONTHLY_DOM_MORNING.map((d) => ({ name: d.month, value: d.value })),
       pieData: PIE_DOM_MORNING,
-      stats: SUMMARY_STATS.domMorning,
+      stats: { total: domOrganicWeight, change: SUMMARY_STATS.domMorning.change, entries: SUMMARY_STATS.domMorning.entries },
       unit: 'kg',
     },
     {
       id: 'domAfternoon',
-      labelKey: 'Limbah Domestik — Sesi Sore',
+      labelKey: 'Limbah Domestik — Anorganik',
       color: tokens.chartDomAfternoon,
       barData: MONTHLY_DOM_AFTERNOON.map((d) => ({ name: d.month, value: d.value })),
       weeklyData: WEEKLY_DOM_AFTERNOON.map((d) => ({ name: d.week, value: d.value })),
       monthlyData: MONTHLY_DOM_AFTERNOON.map((d) => ({ name: d.month, value: d.value })),
       pieData: PIE_DOM_AFTERNOON,
-      stats: SUMMARY_STATS.domAfternoon,
+      stats: { total: domInorganicWeight, change: SUMMARY_STATS.domAfternoon.change, entries: SUMMARY_STATS.domAfternoon.entries },
       unit: 'kg',
     },
   ]
@@ -337,13 +357,28 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
+      {/* Live DB connection badge */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: loading ? '#f59e0b' : '#22c55e',
+            display: 'inline-block',
+            boxShadow: loading ? '0 0 6px #f59e0b' : '0 0 6px #22c55e',
+          }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted }}>
+            {loading ? 'Menghubungkan ke Database MySQL...' : 'Terhubung ke Database Live (MySQL)'}
+          </span>
+        </div>
+      </div>
+
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>
         {[
-          { label: 'B3 Masuk', value: SUMMARY_STATS.b3In.total, change: SUMMARY_STATS.b3In.change, color: tokens.chartB3In },
-          { label: 'B3 Keluar', value: SUMMARY_STATS.b3Out.total, change: SUMMARY_STATS.b3Out.change, color: tokens.chartB3Out },
-          { label: 'Domestik Pagi', value: SUMMARY_STATS.domMorning.total, change: SUMMARY_STATS.domMorning.change, color: tokens.chartDomMorning },
-          { label: 'Domestik Sore', value: SUMMARY_STATS.domAfternoon.total, change: SUMMARY_STATS.domAfternoon.change, color: tokens.chartDomAfternoon },
+          { label: 'B3 Masuk', value: b3InWeight, change: SUMMARY_STATS.b3In.change, color: tokens.chartB3In },
+          { label: 'B3 Keluar', value: b3OutWeight, change: SUMMARY_STATS.b3Out.change, color: tokens.chartB3Out },
+          { label: 'Domestik Organik', value: domOrganicWeight, change: SUMMARY_STATS.domMorning.change, color: tokens.chartDomMorning },
+          { label: 'Domestik Anorganik', value: domInorganicWeight, change: SUMMARY_STATS.domAfternoon.change, color: tokens.chartDomAfternoon },
         ].map(({ label, value, change, color }) => (
           <div key={label} style={{
             background: tokens.card,

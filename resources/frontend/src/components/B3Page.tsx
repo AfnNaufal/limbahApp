@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
 import { useApp } from '../context'
+import { getB3Transactions } from '../api'
 import {
   B3_TRANSACTIONS, MONTHLY_B3_IN, MONTHLY_B3_OUT,
   PIE_B3_IN, PIE_B3_OUT, STORAGE_ALERTS, NOTIFICATIONS,
@@ -11,10 +12,14 @@ import {
 
 type TrendPeriod = 'weekly' | 'monthly' | 'yearly'
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
   pending: '#f59e0b',
   processed: '#3b82f6',
   disposed: '#22c55e',
+  received: '#3b82f6',
+  completed: '#22c55e',
+  draft: '#6b7280',
+  verified: '#22c55e',
 }
 
 const YEARLY_DATA = [
@@ -34,11 +39,42 @@ export default function B3Page() {
   const [filterTo, setFilterTo] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [apiData, setApiData] = useState<any[] | null>(null)
+  const [loading, setLoading] = useState(true)
   const PAGE_SIZE = 10
+
+  useEffect(() => {
+    getB3Transactions(page, PAGE_SIZE, filterCat, filterStatus)
+      .then((res) => {
+        if (res?.data) {
+          const mapped = res.data.map((item: any) => ({
+            id: `B3-${item.id}`,
+            date: item.date,
+            category: item.transaction_type === 'IN' ? 'b3in' : 'b3out',
+            type: item.waste_name,
+            weightKg: Number(item.weight_kg ?? 0),
+            amountKg: Number(item.weight_kg ?? 0),
+            status: (item.status || 'pending').toLowerCase(),
+            source: item.source || '-',
+            destination: item.destination || '-',
+            transporter: item.transporter || '-',
+            manifest: item.manifest_number || '-',
+          }))
+          setApiData(mapped)
+        }
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error('Failed to load B3 transactions:', err)
+        setLoading(false)
+      })
+  }, [page, filterCat, filterStatus])
+
+  const transactionsList = apiData ?? B3_TRANSACTIONS
 
   const isGlass = theme === 'frosted' || theme === 'liquid'
   const filtered = useMemo(() => {
-    return B3_TRANSACTIONS.filter((tx) => {
+    return transactionsList.filter((tx) => {
       if (filterCat !== 'all' && tx.category !== filterCat) return false
       if (filterStatus !== 'all' && tx.status !== filterStatus) return false
       if (filterFrom && tx.date < filterFrom) return false
@@ -46,16 +82,16 @@ export default function B3Page() {
       if (search) {
         const s = search.toLowerCase()
         return (
-          tx.id.toLowerCase().includes(s) ||
-          tx.type.toLowerCase().includes(s) ||
-          tx.source.toLowerCase().includes(s) ||
-          tx.destination.toLowerCase().includes(s) ||
-          tx.manifest.toLowerCase().includes(s)
+          String(tx.id).toLowerCase().includes(s) ||
+          String(tx.type).toLowerCase().includes(s) ||
+          String(tx.source).toLowerCase().includes(s) ||
+          String(tx.destination).toLowerCase().includes(s) ||
+          String(tx.manifest).toLowerCase().includes(s)
         )
       }
       return true
     })
-  }, [filterCat, filterStatus, filterFrom, filterTo, search])
+  }, [transactionsList, filterCat, filterStatus, filterFrom, filterTo, search])
 
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -306,14 +342,14 @@ export default function B3Page() {
                       <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.source}</td>
                       <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.destination}</td>
                       <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                        {tx.amountKg.toFixed(1)} kg
+                        {(tx.amountKg ?? tx.weightKg ?? 0).toFixed(1)} kg
                       </td>
                       <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
-                          background: `${STATUS_COLORS[tx.status]}22`,
-                          color: STATUS_COLORS[tx.status],
-                        }}>{t(tx.status)}</span>
+                          background: `${STATUS_COLORS[tx.status] || '#3b82f6'}22`,
+                          color: STATUS_COLORS[tx.status] || '#3b82f6',
+                        }}>{t(tx.status) || tx.status}</span>
                       </td>
                       <td style={{ padding: '8px 10px', color: tokens.textMuted, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{tx.manifest}</td>
                     </tr>

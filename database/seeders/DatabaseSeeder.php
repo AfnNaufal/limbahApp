@@ -21,5 +21,14 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Phase 1 Seeders
+        $this->call([
+            WasteCategorySeeder::class,
+            B3TransactionSeeder::class,
+            DomesticTransactionSeeder::class,
+            NotificationSeeder::class,
+            StorageAlertSeeder::class,
+        ]);
     }
 }

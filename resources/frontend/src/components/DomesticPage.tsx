@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
 import { useApp } from '../context'
+import { getDomesticTransactions } from '../api'
 import {
   DOMESTIC_TRANSACTIONS, MONTHLY_DOM_MORNING, MONTHLY_DOM_AFTERNOON,
   PIE_DOM_MORNING, PIE_DOM_AFTERNOON, NOTIFICATIONS,
@@ -11,10 +12,14 @@ import {
 
 type TrendPeriod = 'weekly' | 'monthly' | 'yearly'
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
   pending: '#f59e0b',
   processed: '#3b82f6',
   disposed: '#22c55e',
+  received: '#3b82f6',
+  completed: '#22c55e',
+  draft: '#6b7280',
+  verified: '#22c55e',
 }
 
 const YEARLY_DATA = [
@@ -32,21 +37,49 @@ export default function DomesticPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'processed' | 'disposed'>('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [apiData, setApiData] = useState<any[] | null>(null)
+  const [loading, setLoading] = useState(true)
   const PAGE_SIZE = 10
 
+  useEffect(() => {
+    getDomesticTransactions(page, PAGE_SIZE, filterSession)
+      .then((res) => {
+        if (res?.data) {
+          const mapped = res.data.map((item: any) => ({
+            id: `DOM-${item.id}`,
+            date: item.date,
+            session: (item.session || 'MORNING').toLowerCase(),
+            organicKg: item.organic_weight_kg,
+            inorganicKg: item.inorganic_weight_kg,
+            totalKg: item.total_weight_kg,
+            picName: item.pic_name || 'Petugas',
+            status: item.status === 'VERIFIED' ? 'disposed' : 'pending',
+            notes: item.notes || '-',
+          }))
+          setApiData(mapped)
+        }
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error('Failed to load domestic transactions:', err)
+        setLoading(false)
+      })
+  }, [page, filterSession])
+
+  const transactionsList = apiData ?? DOMESTIC_TRANSACTIONS
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
   const filtered = useMemo(() => {
-    return DOMESTIC_TRANSACTIONS.filter((tx) => {
+    return transactionsList.filter((tx) => {
       if (filterSession !== 'all' && tx.session !== filterSession) return false
       if (filterStatus !== 'all' && tx.status !== filterStatus) return false
       if (search) {
         const s = search.toLowerCase()
-        return tx.id.toLowerCase().includes(s) || tx.picName.toLowerCase().includes(s)
+        return String(tx.id).toLowerCase().includes(s) || String(tx.picName).toLowerCase().includes(s)
       }
       return true
     })
-  }, [filterSession, filterStatus, search])
+  }, [transactionsList, filterSession, filterStatus, search])
 
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -224,14 +257,14 @@ export default function DomesticPage() {
                           {tx.session === 'morning' ? '☀ Pagi' : '🌅 Sore'}
                         </span>
                       </td>
-                      <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{tx.organicKg.toFixed(1)}</td>
-                      <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{tx.inorganicKg.toFixed(1)}</td>
-                      <td style={{ padding: '8px 10px', color: tokens.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{tx.totalKg.toFixed(1)}</td>
+                      <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{(tx.organicKg ?? 0).toFixed(1)}</td>
+                      <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{(tx.inorganicKg ?? 0).toFixed(1)}</td>
+                      <td style={{ padding: '8px 10px', color: tokens.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{(tx.totalKg ?? 0).toFixed(1)}</td>
                       <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
-                          background: `${STATUS_COLORS[tx.status]}22`, color: STATUS_COLORS[tx.status],
-                        }}>{t(tx.status)}</span>
+                          background: `${STATUS_COLORS[tx.status] || '#3b82f6'}22`, color: STATUS_COLORS[tx.status] || '#3b82f6',
+                        }}>{t(tx.status) || tx.status}</span>
                       </td>
                       <td style={{ padding: '8px 10px', color: tokens.textMuted }}>{tx.picName}</td>
                     </tr>
