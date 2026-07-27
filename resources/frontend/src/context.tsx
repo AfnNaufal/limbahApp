@@ -4,7 +4,7 @@ import { getTokens } from './theme'
 import type { LangId } from './i18n'
 import { t as translate } from './i18n'
 
-export type PageId = 'dashboard' | 'b3' | 'domestic' | 'settings'
+export type PageId = 'dashboard' | 'b3' | 'domestic' | 'b3-in' | 'b3-out' | 'waste-in' | 'waste-out' | 'settings'
 
 interface AppCtx {
   theme: ThemeId
