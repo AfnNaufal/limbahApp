@@ -1,16 +1,32 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useApp, type PageId } from '../context'
 import logo from '../imports/ehs_logo.png'
 
-const NAV_ITEMS: { id: PageId; icon: string; key: string }[] = [
-  { id: 'dashboard', icon: '⬛', key: 'dashboard' },
-  { id: 'b3', icon: '⚠', key: 'b3Waste' },
-  { id: 'domestic', icon: '🏠', key: 'domesticWaste' },
-  { id: 'settings', icon: '⚙', key: 'settings' },
+type TopLevelIconId = 'dashboard' | 'b3' | 'domestic' | 'settings'
+
+const INPUT_DATA_CHILDREN: { id: PageId; key: string }[] = [
+  { id: 'b3-in', key: 'masuk limbah b3  ' },
+  { id: 'b3-out', key: 'keluar limbah b3' },
+  { id: 'waste-in', key: 'limbah domestik masuk' },
+  { id: 'waste-out', key: 'limbah domestik keluar' },
 ]
 
-function NavIcon({ id }: { id: PageId }) {
-  const icons: Record<PageId, React.ReactElement> = {
+const INPUT_DATA_IDS: PageId[] = INPUT_DATA_CHILDREN.map((c) => c.id)
+
+type NavEntry =
+  | { type: 'page'; id: TopLevelIconId; key: string }
+  | { type: 'group'; key: string; children: { id: PageId; key: string }[] }
+
+const NAV_ITEMS: NavEntry[] = [
+  { type: 'page', id: 'dashboard', key: 'dashboard' },
+  { type: 'page', id: 'b3', key: 'b3Waste' },
+  { type: 'page', id: 'domestic', key: 'domesticWaste' },
+  { type: 'group', key: 'inputData', children: INPUT_DATA_CHILDREN },
+  { type: 'page', id: 'settings', key: 'settings' },
+]
+
+function NavIcon({ id }: { id: TopLevelIconId }) {
+  const icons: Record<TopLevelIconId, React.ReactElement> = {
     dashboard: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
@@ -39,8 +55,34 @@ function NavIcon({ id }: { id: PageId }) {
   return icons[id]
 }
 
+function InputDataIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="12" y1="18" x2="12" y2="12" /><line x1="9" y1="15" x2="15" y2="15" />
+    </svg>
+  )
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      style={{ transition: 'transform 0.18s ease', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink: 0 }}>
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
 export default function Sidebar() {
   const { tokens, page, setPage, sidebarOpen, setSidebarOpen, t, isRTL, theme } = useApp()
+  const [inputDataOpen, setInputDataOpen] = useState(() => INPUT_DATA_IDS.includes(page))
+
+  // Keep the "Input Data" group expanded whenever one of its sub-pages becomes active
+  // (e.g. navigated to from a quick-preview link elsewhere in the app).
+  useEffect(() => {
+    if (INPUT_DATA_IDS.includes(page)) setInputDataOpen(true)
+  }, [page])
 
   const collapsed = !sidebarOpen
   const isGlass = theme === 'frosted' || theme === 'liquid'
@@ -48,6 +90,63 @@ export default function Sidebar() {
 
   const sidebarBg = isGlass ? (tokens.glassBg ?? tokens.sidebar) : tokens.sidebar
   const blur = isGlass ? (tokens.glassBlur ?? 'blur(16px)') : undefined
+
+  function navButtonStyle(active: boolean, indent: boolean) {
+    return {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: collapsed ? '11px 0' : indent ? '9px 16px' : '11px 16px',
+      paddingLeft: collapsed || isRTL ? undefined : indent ? 40 : 16,
+      paddingRight: collapsed || !isRTL ? undefined : indent ? 40 : 16,
+      justifyContent: collapsed ? 'center' : (isRTL ? 'flex-end' : 'flex-start'),
+      background: active ? tokens.sidebarActive : 'transparent',
+      color: active ? tokens.sidebarActiveText : tokens.sidebarText,
+      border: 'none',
+      cursor: 'pointer',
+      fontFamily: tokens.fontFamily,
+      fontSize: indent ? 12.5 : 13,
+      fontWeight: active ? 600 : 400,
+      borderRadius: collapsed ? 0 : '0 4px 4px 0',
+      marginBottom: 2,
+      transition: 'all 0.15s',
+      position: 'relative' as const,
+      textShadow: active && isNight ? tokens.neonGlow : undefined,
+      boxShadow: active && isNight ? `inset 0 0 20px ${tokens.primary}22` : undefined,
+    }
+  }
+
+  function hoverHandlers(active: boolean) {
+    return {
+      onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (!active) {
+          e.currentTarget.style.background = `${tokens.sidebarActive}22`
+          e.currentTarget.style.color = '#ffffff'
+        }
+      },
+      onMouseLeave: (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (!active) {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.color = tokens.sidebarText
+        }
+      },
+    }
+  }
+
+  function ActiveBar({ show }: { show: boolean }) {
+    if (!show) return null
+    return (
+      <div style={{
+        position: 'absolute',
+        left: 0, top: 0, bottom: 0,
+        width: 3,
+        background: isNight ? tokens.primary : '#ffffff',
+        borderRadius: '0 2px 2px 0',
+        boxShadow: isNight ? tokens.neonGlow : undefined,
+      }} />
+    )
+  }
 
   return (
     <aside
@@ -90,60 +189,66 @@ export default function Sidebar() {
       </div>
 
       {/* Nav items */}
-      <nav style={{ flex: 1, padding: '12px 0' }}>
-        {NAV_ITEMS.map(({ id, key }) => {
-          const active = page === id
+      <nav style={{ flex: 1, padding: '12px 0', overflowY: 'auto' }}>
+        {NAV_ITEMS.map((entry) => {
+          if (entry.type === 'page') {
+            const active = page === entry.id
+            return (
+              <button
+                key={entry.id}
+                onClick={() => setPage(entry.id)}
+                style={navButtonStyle(active, false)}
+                {...hoverHandlers(active)}
+              >
+                <ActiveBar show={active && !collapsed} />
+                <span style={{ opacity: active ? 1 : 0.7, flexShrink: 0 }}><NavIcon id={entry.id} /></span>
+                {!collapsed && <span>{t(entry.key)}</span>}
+              </button>
+            )
+          }
+
+          // Dropdown group ("Input Data")
+          const groupActive = INPUT_DATA_IDS.includes(page)
           return (
-            <button
-              key={id}
-              onClick={() => setPage(id)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: collapsed ? '11px 0' : '11px 16px',
-                justifyContent: collapsed ? 'center' : (isRTL ? 'flex-end' : 'flex-start'),
-                background: active ? tokens.sidebarActive : 'transparent',
-                color: active ? tokens.sidebarActiveText : tokens.sidebarText,
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: tokens.fontFamily,
-                fontSize: 13,
-                fontWeight: active ? 600 : 400,
-                borderRadius: collapsed ? 0 : '0 4px 4px 0',
-                marginBottom: 2,
-                transition: 'all 0.15s',
-                position: 'relative',
-                textShadow: active && isNight ? tokens.neonGlow : undefined,
-                boxShadow: active && isNight ? `inset 0 0 20px ${tokens.primary}22` : undefined,
-              }}
-              onMouseEnter={(e) => {
-                if (!active) {
-                  e.currentTarget.style.background = `${tokens.sidebarActive}22`
-                  e.currentTarget.style.color = '#ffffff'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!active) {
-                  e.currentTarget.style.background = 'transparent'
-                  e.currentTarget.style.color = tokens.sidebarText
-                }
-              }}
-            >
-              {active && !collapsed && (
-                <div style={{
-                  position: 'absolute',
-                  left: 0, top: 0, bottom: 0,
-                  width: 3,
-                  background: isNight ? tokens.primary : '#ffffff',
-                  borderRadius: '0 2px 2px 0',
-                  boxShadow: isNight ? tokens.neonGlow : undefined,
-                }} />
+            <div key={entry.key}>
+              <button
+                onClick={() => setInputDataOpen((v) => !v)}
+                aria-expanded={inputDataOpen}
+                style={{
+                  ...navButtonStyle(false, false),
+                  color: groupActive ? '#ffffff' : tokens.sidebarText,
+                  fontWeight: groupActive ? 600 : 400,
+                }}
+                {...hoverHandlers(false)}
+              >
+                <span style={{ opacity: groupActive ? 1 : 0.7, flexShrink: 0 }}><InputDataIcon /></span>
+                {!collapsed && (
+                  <>
+                    <span style={{ flex: 1, textAlign: isRTL ? 'right' : 'left' }}>{t(entry.key)}</span>
+                    <ChevronIcon open={inputDataOpen} />
+                  </>
+                )}
+              </button>
+
+              {!collapsed && inputDataOpen && (
+                <div>
+                  {entry.children.map((child) => {
+                    const active = page === child.id
+                    return (
+                      <button
+                        key={child.id}
+                        onClick={() => setPage(child.id)}
+                        style={navButtonStyle(active, true)}
+                        {...hoverHandlers(active)}
+                      >
+                        <ActiveBar show={active} />
+                        <span style={{ opacity: active ? 1 : 0.7 }}>{t(child.key)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               )}
-              <span style={{ opacity: active ? 1 : 0.7, flexShrink: 0 }}><NavIcon id={id} /></span>
-              {!collapsed && <span>{t(key)}</span>}
-            </button>
+            </div>
           )
         })}
       </nav>

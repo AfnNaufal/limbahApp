@@ -8,8 +8,30 @@ import B3Page from './components/B3Page'
 import DomesticPage from './components/DomesticPage'
 import SettingsPage from './components/SettingsPage'
 
+function PlaceholderPage({ title }: { title: string }) {
+  const { tokens } = useApp()
+  return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div
+        style={{
+          background: tokens.card,
+          border: `1px solid ${tokens.cardBorder}`,
+          borderRadius: tokens.radius,
+          padding: '32px 48px',
+          textAlign: 'center',
+          color: tokens.text,
+          fontFamily: tokens.fontFamily,
+        }}
+      >
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{title}</div>
+        <div style={{ marginTop: 6, fontSize: 13, color: tokens.textMuted }}>{title} — halaman ini masih dalam pengembangan.</div>
+      </div>
+    </div>
+  )
+}
+
 function MainLayout() {
-  const { tokens, page, isRTL, theme } = useApp()
+  const { tokens, page, isRTL, theme, t } = useApp()
 
   const isGrad = tokens.bg.includes('gradient') || tokens.bg.includes('linear')
   const isNight = theme === 'nightcity'
@@ -49,6 +71,10 @@ function MainLayout() {
           {page === 'dashboard' && <Dashboard />}
           {page === 'b3' && <B3Page />}
           {page === 'domestic' && <DomesticPage />}
+          {page === 'b3-in' && <PlaceholderPage title={t('menuB3In')} />}
+          {page === 'b3-out' && <PlaceholderPage title={t('menuB3Out')} />}
+          {page === 'waste-in' && <PlaceholderPage title={t('menuWasteIn')} />}
+          {page === 'waste-out' && <PlaceholderPage title={t('menuWasteOut')} />}
           {page === 'settings' && <SettingsPage />}
         </main>
       </div>
