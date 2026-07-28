@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\DomesticTransaction;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateDomesticTransactionRequest extends FormRequest
 {
@@ -13,27 +15,20 @@ class UpdateDomesticTransactionRequest extends FormRequest
 
     public function rules(): array
     {
-        $transactionId = $this->route('domestic_transaction')?->id ?? $this->route('domestic_transaction');
+        $detailRules = collect(DomesticTransaction::DETAIL_FIELDS)
+            ->mapWithKeys(fn (string $field): array => [$field => ['sometimes', 'numeric', 'min:0', 'max:999999.99']])
+            ->all();
 
         return [
-            'date' => 'sometimes|date|before_or_equal:today',
-            'session' => 'sometimes|in:MORNING,AFTERNOON|unique:domestic_transactions,session,NULL,id,date,' . $this->input('date'),
-            'organic_weight_kg' => 'sometimes|numeric|min:0|max:999999.99',
-            'inorganic_weight_kg' => 'sometimes|numeric|min:0|max:999999.99',
-            'status' => 'sometimes|in:DRAFT,SUBMITTED,VERIFIED,REJECTED',
-            'pic_name' => 'sometimes|string|max:255',
-            'pic_phone' => 'nullable|string|max:20',
-            'notes' => 'nullable|string|max:1000',
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'session.in' => 'Session must be either MORNING or AFTERNOON',
-            'session.unique' => 'A transaction for this date and session already exists',
-            'organic_weight_kg.min' => 'Organic weight cannot be negative',
-            'inorganic_weight_kg.min' => 'Inorganic weight cannot be negative',
+            'date' => ['sometimes', 'date', 'before_or_equal:today'],
+            'movement_type' => ['sometimes', Rule::in(['IN', 'OUT'])],
+            'session' => ['nullable', Rule::in(['MORNING', 'AFTERNOON'])],
+            'processing_method' => ['nullable', Rule::in(['PROCESSED', 'LANDFILL'])],
+            ...$detailRules,
+            'status' => ['sometimes', Rule::in(['DRAFT', 'SUBMITTED', 'VERIFIED', 'REJECTED'])],
+            'pic_name' => ['sometimes', 'string', 'max:255'],
+            'pic_phone' => ['nullable', 'string', 'max:20'],
+            'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }
