@@ -23,8 +23,10 @@ class B3Transaction extends Model
         'transporter',
         'manifest_number',
         'weight_kg',
+        'remaining_weight_kg',
         'status',
         'storage_deadline_at',
+        'scale_photo_path',
         'notes',
         'created_by',
         'updated_by',
@@ -34,6 +36,7 @@ class B3Transaction extends Model
         'date' => 'date',
         'storage_deadline_at' => 'datetime',
         'weight_kg' => 'decimal:2',
+        'remaining_weight_kg' => 'decimal:2',
         'transaction_type' => 'string',
         'status' => 'string',
     ];

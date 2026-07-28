@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\DomesticTransaction;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreDomesticTransactionRequest extends FormRequest
 {
@@ -11,33 +13,51 @@ class StoreDomesticTransactionRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'status' => $this->input('status', 'SUBMITTED'),
+            'pic_name' => $this->input('pic_name', 'Petugas'),
+        ]);
+    }
+
     public function rules(): array
     {
+        $detailRules = collect(DomesticTransaction::DETAIL_FIELDS)
+            ->mapWithKeys(fn (string $field): array => [$field => ['nullable', 'numeric', 'min:0', 'max:999999.99']])
+            ->all();
+
         return [
-            'date' => 'required|date|before_or_equal:today',
-            'session' => 'required|in:MORNING,AFTERNOON|unique:domestic_transactions,session,NULL,id,date,' . $this->input('date'),
-            'organic_weight_kg' => 'required|numeric|min:0|max:999999.99',
-            'inorganic_weight_kg' => 'required|numeric|min:0|max:999999.99',
-            'status' => 'required|in:DRAFT,SUBMITTED,VERIFIED,REJECTED',
-            'pic_name' => 'required|string|max:255',
-            'pic_phone' => 'nullable|string|max:20',
-            'notes' => 'nullable|string|max:1000',
+            'date' => ['required', 'date', 'before_or_equal:today'],
+            'movement_type' => ['required', Rule::in(['IN', 'OUT'])],
+            'session' => ['required_if:movement_type,IN', 'nullable', Rule::in(['MORNING', 'AFTERNOON'])],
+            'processing_method' => ['required_if:movement_type,OUT', 'nullable', Rule::in(['PROCESSED', 'LANDFILL'])],
+            ...$detailRules,
+            'status' => ['required', Rule::in(['DRAFT', 'SUBMITTED', 'VERIFIED', 'REJECTED'])],
+            'pic_name' => ['required', 'string', 'max:255'],
+            'pic_phone' => ['nullable', 'string', 'max:20'],
+            'notes' => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $total = collect(DomesticTransaction::DETAIL_FIELDS)
+                ->sum(fn (string $field): float => (float) $this->input($field, 0));
+
+            if ($total <= 0) {
+                $validator->errors()->add('total_weight_kg', 'Minimal satu jenis sampah harus memiliki nilai lebih dari 0.');
+            }
+        });
     }
 
     public function messages(): array
     {
         return [
-            'date.required' => 'Date is required',
-            'session.required' => 'Session is required (MORNING or AFTERNOON)',
-            'session.in' => 'Session must be either MORNING or AFTERNOON',
-            'session.unique' => 'A transaction for this date and session already exists',
-            'organic_weight_kg.required' => 'Organic weight is required',
-            'organic_weight_kg.min' => 'Organic weight cannot be negative',
-            'inorganic_weight_kg.required' => 'Inorganic weight is required',
-            'inorganic_weight_kg.min' => 'Inorganic weight cannot be negative',
-            'status.required' => 'Status is required',
-            'pic_name.required' => 'Person in charge name is required',
+            'movement_type.required' => 'Jenis transaksi masuk/keluar wajib dipilih.',
+            'session.required_if' => 'Sesi wajib dipilih untuk sampah masuk.',
+            'processing_method.required_if' => 'Metode pengolahan wajib dipilih untuk sampah keluar.',
         ];
     }
 }
