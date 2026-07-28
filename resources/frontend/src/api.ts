@@ -1,116 +1,227 @@
-// API Integration Service Layer for LimbahApp
+type ApiErrorBody = {
+  message?: string;
+  errors?: Record<string, string[]>;
+};
 
-const API_BASE = '/api';
-
-/**
- * Helper to handle API responses and CSRF
- */
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
-    ...(options.headers as Record<string, string> || {}),
-  };
-
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+async function parseResponse<T>(response: Response): Promise<T> {
+  const body = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`API Error (${response.status}): ${errorText}`);
+    const errorBody = body as ApiErrorBody | null;
+
+    const firstError = errorBody?.errors
+      ? Object.values(errorBody.errors).flat().find(Boolean)
+      : undefined;
+
+    throw new Error(
+      firstError ??
+      errorBody?.message ??
+      `Request gagal dengan status ${response.status}.`,
+    );
   }
 
-  const json = await response.json();
-  return json.data !== undefined ? json.data : json;
+  return body as T;
 }
 
-// Dashboard Summary Interface
-export interface DashboardSummaryData {
-  b3_total_weight_kg: number;
-  b3_count_in: number;
-  b3_count_out: number;
+export async function getApi<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  return parseResponse<T>(response);
+}
+
+export async function postApi<TResponse, TPayload>(
+  url: string,
+  payload: TPayload,
+): Promise<TResponse> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse<TResponse>(response);
+}
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+
+export type DashboardSummaryData = {
   b3_in_weight_kg: number;
   b3_out_weight_kg: number;
-  b3_pending_count: number;
+  b3_count_in: number;
+  b3_count_out: number;
   domestic_today_organic_kg: number;
   domestic_today_inorganic_kg: number;
-  domestic_today_total_kg: number;
-  storage_alerts_active: number;
-  storage_alerts_expired: number;
-  notifications_unread: number;
-  recent_b3_transactions?: any[];
-  recent_domestic_transactions?: any[];
-  recent_alerts?: any[];
-}
+};
+
+type DashboardSummaryApiResponse =
+  | DashboardSummaryData
+  | {
+    data: DashboardSummaryData;
+  };
 
 export async function getDashboardSummary(): Promise<DashboardSummaryData> {
-  return apiFetch<DashboardSummaryData>('/dashboard/summary');
+  const response = await getApi<DashboardSummaryApiResponse>(
+    '/api/dashboard/summary',
+  );
+
+  if (
+    response !== null &&
+    typeof response === 'object' &&
+    'data' in response
+  ) {
+    return response.data;
+  }
+
+  return response;
 }
 
-export async function getMonthlyTrends(months = 12): Promise<{ trends: any[] }> {
-  return apiFetch<{ trends: any[] }>(`/dashboard/monthly-trends?months=${months}`);
+/* =========================================================
+   B3 TRANSACTIONS
+   ========================================================= */
+
+export type B3Transaction = {
+  id: number;
+  transaction_type: 'IN' | 'OUT';
+  waste_category_id: number;
+  waste_code?: string | null;
+  waste_name?: string | null;
+  date: string;
+  source?: string | null;
+  destination?: string | null;
+  transporter?: string | null;
+  manifest_number?: string | null;
+  weight_kg: number | string;
+  status?: string | null;
+  storage_deadline_at?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type PaginatedResponse<T> = {
+  data: T[];
+  current_page?: number;
+  last_page?: number;
+  per_page?: number;
+  total?: number;
+};
+
+export async function getB3Transactions(
+  params?: {
+    type?: 'IN' | 'OUT';
+    status?: string;
+    from?: string;
+    to?: string;
+  },
+): Promise<PaginatedResponse<B3Transaction>> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.type) {
+    searchParams.set('type', params.type);
+  }
+
+  if (params?.status) {
+    searchParams.set('status', params.status);
+  }
+
+  if (params?.from) {
+    searchParams.set('from', params.from);
+  }
+
+  if (params?.to) {
+    searchParams.set('to', params.to);
+  }
+
+  const query = searchParams.toString();
+
+  return getApi<PaginatedResponse<B3Transaction>>(
+    `/api/b3-transactions${query ? `?${query}` : ''}`,
+  );
 }
 
-export async function getB3Transactions(page = 1, perPage = 25, type?: string, status?: string): Promise<{ data: any[]; meta: any }> {
-  const queryParams = new URLSearchParams({
-    page: page.toString(),
-    per_page: perPage.toString(),
-  });
-  if (type && type !== 'all') queryParams.append('type', type.toUpperCase());
-  if (status && status !== 'all') queryParams.append('status', status.toUpperCase());
+/* =========================================================
+   DOMESTIC TRANSACTIONS
+   ========================================================= */
 
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-  const response = await fetch(`${API_BASE}/b3-transactions?${queryParams.toString()}`, {
-    headers: {
-      'Accept': 'application/json',
-      ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
-    },
-  });
-  if (!response.ok) throw new Error('Failed to fetch B3 transactions');
-  return await response.json();
-}
+export type DomesticTransaction = {
+  id: number;
+  date: string;
+  movement_type?: 'IN' | 'OUT' | null;
+  session?: 'MORNING' | 'AFTERNOON' | string | null;
+  processing_method?: string | null;
 
-export async function createB3Transaction(payload: any): Promise<any> {
-  return apiFetch('/b3-transactions', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
+  organic_weight_kg?: number | string;
+  inorganic_weight_kg?: number | string;
+  total_weight_kg?: number | string;
 
-export async function getDomesticTransactions(page = 1, perPage = 25, session?: string): Promise<{ data: any[]; meta: any }> {
-  const queryParams = new URLSearchParams({
-    page: page.toString(),
-    per_page: perPage.toString(),
-  });
-  if (session && session !== 'all') queryParams.append('session', session.toUpperCase());
+  domestic_residue_kg?: number | string;
+  leaf_waste_kg?: number | string;
+  paper_waste_kg?: number | string;
+  wood_scrap_kg?: number | string;
+  metal_kg?: number | string;
+  cardboard_kg?: number | string;
+  plant_waste_kg?: number | string;
+  plastic_bottle_kg?: number | string;
+  plastic_packaging_kg?: number | string;
+  food_container_kg?: number | string;
+  wood_cutting_kg?: number | string;
+  brick_kg?: number | string;
+  concrete_block_kg?: number | string;
+  cement_packaging_kg?: number | string;
+  ceiling_waste_kg?: number | string;
 
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-  const response = await fetch(`${API_BASE}/domestic-transactions?${queryParams.toString()}`, {
-    headers: {
-      'Accept': 'application/json',
-      ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
-    },
-  });
-  if (!response.ok) throw new Error('Failed to fetch Domestic transactions');
-  return await response.json();
-}
+  status?: string | null;
+  pic_name?: string | null;
+  pic_phone?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
 
-export async function createDomesticTransaction(payload: any): Promise<any> {
-  return apiFetch('/domestic-transactions', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
+export async function getDomesticTransactions(
+  params?: {
+    movement_type?: 'IN' | 'OUT';
+    session?: 'MORNING' | 'AFTERNOON';
+    status?: string;
+    from?: string;
+    to?: string;
+  },
+): Promise<PaginatedResponse<DomesticTransaction>> {
+  const searchParams = new URLSearchParams();
 
-export async function getWasteCategories(): Promise<any[]> {
-  return apiFetch<any[]>('/waste-categories');
-}
+  if (params?.movement_type) {
+    searchParams.set('movement_type', params.movement_type);
+  }
 
-export async function getNotifications(): Promise<any[]> {
-  return apiFetch<any[]>('/notifications');
+  if (params?.session) {
+    searchParams.set('session', params.session);
+  }
+
+  if (params?.status) {
+    searchParams.set('status', params.status);
+  }
+
+  if (params?.from) {
+    searchParams.set('from', params.from);
+  }
+
+  if (params?.to) {
+    searchParams.set('to', params.to);
+  }
+
+  const query = searchParams.toString();
+
+  return getApi<PaginatedResponse<DomesticTransaction>>(
+    `/api/domestic-transactions${query ? `?${query}` : ''}`,
+  );
 }

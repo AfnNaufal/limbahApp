@@ -7,6 +7,10 @@ import Dashboard from './components/Dashboard'
 import B3Page from './components/B3Page'
 import DomesticPage from './components/DomesticPage'
 import SettingsPage from './components/SettingsPage'
+import InputB3IncomingPage from './components/InputB3IncomingPage'
+import InputB3OutgoingPage from './components/InputB3OutgoingPage'
+import InputDomesticIncomingPage from './components/InputDomesticIncomingPage'
+import InputDomesticOutgoingPage from './components/InputDomesticOutgoingPage'
 
 function MainLayout() {
   const { tokens, page, isRTL, theme } = useApp()
@@ -49,6 +53,10 @@ function MainLayout() {
           {page === 'dashboard' && <Dashboard />}
           {page === 'b3' && <B3Page />}
           {page === 'domestic' && <DomesticPage />}
+          {page === 'b3-in' && <InputB3IncomingPage />}
+          {page === 'b3-out' && <InputB3OutgoingPage />}
+          {page === 'waste-in' && <InputDomesticIncomingPage />}
+          {page === 'waste-out' && <InputDomesticOutgoingPage />}
           {page === 'settings' && <SettingsPage />}
         </main>
       </div>

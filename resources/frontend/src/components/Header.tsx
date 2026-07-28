@@ -8,6 +8,10 @@ const PAGE_TITLES: Record<PageId, string> = {
   dashboard: 'dashboard',
   b3: 'b3Waste',
   domestic: 'domesticWaste',
+  'b3-in': 'menuB3In',
+  'b3-out': 'menuB3Out',
+  'waste-in': 'menuWasteIn',
+  'waste-out': 'menuWasteOut',
   settings: 'settings',
 }
 
