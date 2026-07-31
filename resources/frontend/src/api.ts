@@ -298,3 +298,47 @@ export async function updateDomesticTransaction(
 export async function deleteDomesticTransaction(id: number | string): Promise<void> {
   return deleteApi(`/api/domestic-transactions/${id}`);
 }
+
+/* =========================================================
+   NOTIFICATIONS
+   ========================================================= */
+
+export type ApiNotification = {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  reference_type?: string | null;
+  reference_id?: number | null;
+  is_read: boolean;
+  read_at?: string | null;
+  created_at: string;
+};
+
+export async function getNotifications(params?: {
+  include_read?: boolean;
+  type?: string;
+  per_page?: number;
+}): Promise<ApiNotification[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.include_read !== undefined) searchParams.set('include_read', String(params.include_read));
+  if (params?.type) searchParams.set('type', params.type);
+  if (params?.per_page) searchParams.set('per_page', String(params.per_page));
+
+  const query = searchParams.toString();
+  const res = await getApi<{ data: ApiNotification[] } | ApiNotification[]>(
+    `/api/notifications${query ? `?${query}` : ''}`,
+  );
+
+  if (Array.isArray(res)) return res;
+  return res?.data ?? [];
+}
+
+export async function markNotificationAsRead(id: number): Promise<ApiNotification> {
+  const res = await postApi<{ data: ApiNotification } | ApiNotification, {}>(
+    `/api/notifications/${id}/read`,
+    {},
+  );
+  if (res && 'data' in res) return res.data;
+  return res as ApiNotification;
+}

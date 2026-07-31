@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp, type PageId } from '../context'
 import { NOTIFICATIONS } from '../data'
-import type { Notification } from '../data'
+import { getNotifications, markNotificationAsRead } from '../api'
 import { useIsMobile } from '../hooks/useMediaQuery'
 
 const PAGE_TITLES: Record<PageId, string> = {
@@ -15,9 +15,27 @@ const PAGE_TITLES: Record<PageId, string> = {
   settings: 'settings',
 }
 
-function NotificationPanel({ tokens, isMobile }: { tokens: ReturnType<typeof useApp>['tokens']; isMobile: boolean }) {
+interface DisplayNotification {
+  id: number
+  type: string
+  title: string
+  message: string
+  read: boolean
+  timestamp: string
+}
+
+function NotificationPanel({
+  tokens,
+  isMobile,
+  notes,
+  setNotes,
+}: {
+  tokens: ReturnType<typeof useApp>['tokens']
+  isMobile: boolean
+  notes: DisplayNotification[]
+  setNotes: React.Dispatch<React.SetStateAction<DisplayNotification[]>>
+}) {
   const { t } = useApp()
-  const [notes, setNotes] = useState<Notification[]>(NOTIFICATIONS)
   const unread = notes.filter((n) => !n.read).length
 
   const typeColor: Record<string, string> = {
@@ -25,6 +43,11 @@ function NotificationPanel({ tokens, isMobile }: { tokens: ReturnType<typeof use
     b3out: tokens.chartB3Out,
     domestic: tokens.chartDomMorning,
     alert: tokens.danger,
+    B3_RECEIVED: tokens.chartB3In,
+    B3_DISPATCHED: tokens.chartB3Out,
+    B3_EXPIRED: tokens.danger,
+    DOMESTIC_SUBMITTED: tokens.chartDomMorning,
+    ALERT: tokens.danger,
   }
 
   const typeIcon: Record<string, string> = {
@@ -32,6 +55,41 @@ function NotificationPanel({ tokens, isMobile }: { tokens: ReturnType<typeof use
     b3out: '↑',
     domestic: '🏠',
     alert: '⚠',
+    B3_RECEIVED: '↓',
+    B3_DISPATCHED: '↑',
+    B3_EXPIRED: '⚠',
+    DOMESTIC_SUBMITTED: '🏠',
+    ALERT: '⚠',
+  }
+
+  const handleMarkAllRead = async () => {
+    const unreadItems = notes.filter((n) => !n.read)
+    setNotes((prev) => prev.map((x) => ({ ...x, read: true })))
+    try {
+      await Promise.all(unreadItems.map((item) => markNotificationAsRead(item.id)))
+    } catch {
+      // Non-blocking fallback
+    }
+  }
+
+  const handleMarkItemRead = async (n: DisplayNotification) => {
+    if (n.read) return
+    setNotes((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)))
+    try {
+      await markNotificationAsRead(n.id)
+    } catch {
+      // Non-blocking fallback
+    }
+  }
+
+  const formatDate = (ts: string) => {
+    try {
+      const d = new Date(ts)
+      if (isNaN(d.getTime())) return ts
+      return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    } catch {
+      return ts
+    }
   }
 
   return (
@@ -64,7 +122,7 @@ function NotificationPanel({ tokens, isMobile }: { tokens: ReturnType<typeof use
           )}
         </div>
         <button
-          onClick={() => setNotes((n) => n.map((x) => ({ ...x, read: true })))}
+          onClick={handleMarkAllRead}
           style={{ fontSize: 11, color: tokens.primary, background: 'none', border: 'none', cursor: 'pointer', fontFamily: tokens.fontFamily }}
         >
           {t('markAllRead')}
@@ -85,7 +143,7 @@ function NotificationPanel({ tokens, isMobile }: { tokens: ReturnType<typeof use
                 cursor: 'pointer',
                 transition: 'background 0.15s',
               }}
-              onClick={() => setNotes((prev) => prev.map((x) => x.id === n.id ? { ...x, read: true } : x))}
+              onClick={() => handleMarkItemRead(n)}
             >
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <div style={{
@@ -104,7 +162,7 @@ function NotificationPanel({ tokens, isMobile }: { tokens: ReturnType<typeof use
                   </div>
                   <div style={{ fontSize: 12, color: tokens.textMuted, lineHeight: 1.4 }}>{n.message}</div>
                   <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>
-                    {new Date(n.timestamp).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {formatDate(n.timestamp)}
                   </div>
                 </div>
               </div>
@@ -121,11 +179,47 @@ export default function Header() {
   const [showNotif, setShowNotif] = useState(false)
   const [year, setYear] = useState('2024')
   const [search, setSearch] = useState('')
-  // const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [notes, setNotes] = useState<DisplayNotification[]>(
+    NOTIFICATIONS.map((n) => ({
+      id: n.id,
+      type: n.type,
+      title: n.title,
+      message: n.message,
+      read: n.read,
+      timestamp: n.timestamp,
+    }))
+  )
   const notifRef = useRef<HTMLDivElement>(null)
-  // const searchRef = useRef<HTMLDivElement>(null)
-  const unreadCount = NOTIFICATIONS.filter((n) => !n.read).length
   const isMobile = useIsMobile()
+
+  const fetchLatestNotifications = () => {
+    getNotifications({ include_read: true, per_page: 20 })
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setNotes(
+            data.map((n) => ({
+              id: n.id,
+              type: n.type,
+              title: n.title,
+              message: n.message,
+              read: Boolean(n.is_read),
+              timestamp: n.created_at,
+            }))
+          )
+        }
+      })
+      .catch(() => {
+        // Safe fallback to initial state
+      })
+  }
+
+  useEffect(() => {
+    fetchLatestNotifications()
+    const interval = setInterval(fetchLatestNotifications, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const unreadCount = notes.filter((n) => !n.read).length
 
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
@@ -294,7 +388,7 @@ export default function Header() {
             }}>{unreadCount}</span>
           )}
         </button>
-        {showNotif && <NotificationPanel tokens={tokens} isMobile={isMobile} />}
+        {showNotif && <NotificationPanel tokens={tokens} isMobile={isMobile} notes={notes} setNotes={setNotes} />}
       </div>
 
       {/* User avatar */}

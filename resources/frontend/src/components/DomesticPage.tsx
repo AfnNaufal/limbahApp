@@ -54,6 +54,20 @@ export default function DomesticPage() {
   const isTablet = useIsTablet()
   const PAGE_SIZE = 10
 
+  const recentActivities = useMemo(() => {
+    if (apiData && apiData.length > 0) {
+      return apiData.slice(0, 5).map((tx) => {
+        const sessionLabel = tx.session === 'MORNING' ? 'Sesi Pagi' : (tx.session === 'AFTERNOON' ? 'Sesi Sore' : 'Harian')
+        const totalWeight = Number(tx.totalKg || (Number(tx.organicKg || 0) + Number(tx.inorganicKg || 0)))
+        const title = `Limbah Domestik (${sessionLabel})`
+        const message = `Pencatatan limbah domestik total ${totalWeight.toFixed(1)} kg`
+        const timestamp = tx.date || new Date().toISOString()
+        return { id: tx.id, type: 'domestic', title, message, timestamp }
+      })
+    }
+    return NOTIFICATIONS.filter((n) => n.type === 'domestic')
+  }, [apiData])
+
   const fetchData = () => {
     setLoading(true)
     getDomesticTransactions({
@@ -383,13 +397,13 @@ export default function DomesticPage() {
       {/* Recent Activity */}
       <div style={{ ...cardStyle, marginTop: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text, marginBottom: 14 }}>{t('recentActivity')}</div>
-        {NOTIFICATIONS.filter((n) => n.type === 'domestic').length === 0 ? (
+        {recentActivities.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '24px 0', color: tokens.textMuted, fontSize: 13 }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🏠</div>
             Belum ada aktivitas terkini untuk limbah domestik.
           </div>
         ) : (
-          NOTIFICATIONS.filter((n) => n.type === 'domestic').map((n) => (
+          recentActivities.map((n) => (
             <div key={n.id} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: `1px solid ${tokens.border}` }}>
               <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: `${tokens.chartDomMorning}20`, color: tokens.chartDomMorning, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
                 🏠
@@ -398,7 +412,15 @@ export default function DomesticPage() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: tokens.text }}>{n.title}</div>
                 <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2 }}>{n.message}</div>
                 <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>
-                  {new Date(n.timestamp).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  {(() => {
+                    try {
+                      const d = new Date(n.timestamp)
+                      if (isNaN(d.getTime())) return n.timestamp
+                      return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    } catch {
+                      return n.timestamp
+                    }
+                  })()}
                 </div>
               </div>
             </div>

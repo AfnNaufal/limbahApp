@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DomesticTransaction;
+use App\Models\Notification;
 use Carbon\Carbon;
 use Illuminate\Pagination\Paginator;
 
@@ -13,7 +14,26 @@ class DomesticTransactionService
      */
     public function createTransaction(array $data): DomesticTransaction
     {
-        return DomesticTransaction::create($data);
+        $transaction = DomesticTransaction::create($data);
+
+        try {
+            $totalWeight = (float) ($transaction->total_weight_kg ?? ((float) ($transaction->organic_weight_kg ?? 0) + (float) ($transaction->inorganic_weight_kg ?? 0)));
+            $weightFormatted = number_format($totalWeight, 1, ',', '.');
+            $sessionName = ($transaction->session ?? '') === 'MORNING' ? 'Sesi Pagi' : (($transaction->session ?? '') === 'AFTERNOON' ? 'Sesi Sore' : 'Harian');
+
+            Notification::create([
+                'type' => 'domestic',
+                'title' => 'Limbah Domestik (' . $sessionName . ')',
+                'message' => "Pencatatan limbah domestik total {$weightFormatted} kg",
+                'reference_type' => 'DOMESTIC_TRANSACTION',
+                'reference_id' => $transaction->id,
+                'is_read' => false,
+            ]);
+        } catch (\Throwable $e) {
+            // Non-blocking fallback
+        }
+
+        return $transaction;
     }
 
     /**

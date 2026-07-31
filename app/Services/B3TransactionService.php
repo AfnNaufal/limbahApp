@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\B3Transaction;
+use App\Models\Notification;
 use App\Models\StorageAlert;
 use Carbon\Carbon;
 use Illuminate\Pagination\Paginator;
@@ -22,7 +23,27 @@ class B3TransactionService
             unset($data['scale_photo']);
         }
 
-        return B3Transaction::create($data);
+        $transaction = B3Transaction::create($data);
+
+        try {
+            $type = ($transaction->transaction_type ?? 'IN') === 'IN' ? 'b3in' : 'b3out';
+            $title = ($transaction->transaction_type ?? 'IN') === 'IN' ? 'Transaksi B3 Masuk' : 'Transaksi B3 Keluar';
+            $weightFormatted = number_format((float) $transaction->weight_kg, 1, ',', '.');
+            $wasteName = $transaction->waste_name ?? 'Limbah B3';
+
+            Notification::create([
+                'type' => $type,
+                'title' => $title,
+                'message' => "Pencatatan {$wasteName} sejumlah {$weightFormatted} kg",
+                'reference_type' => 'B3_TRANSACTION',
+                'reference_id' => $transaction->id,
+                'is_read' => false,
+            ]);
+        } catch (\Throwable $e) {
+            // Non-blocking notification creation fallback
+        }
+
+        return $transaction;
     }
 
     /**
@@ -161,6 +182,20 @@ class B3TransactionService
                 'deadline_at' => $transaction->storage_deadline_at,
                 'is_active' => true,
             ]);
+
+            try {
+                Notification::create([
+                    'type' => 'alert',
+                    'title' => 'Peringatan Masa Simpan B3',
+                    'message' => "Penyimpanan " . ($transaction->waste_name ?? 'Limbah B3') . " mendekati batas waktu simpan.",
+                    'reference_type' => 'STORAGE_ALERT',
+                    'reference_id' => $transaction->id,
+                    'is_read' => false,
+                ]);
+            } catch (\Throwable $e) {
+                // Ignore fallback
+            }
+
             $alertsCreated++;
         }
 

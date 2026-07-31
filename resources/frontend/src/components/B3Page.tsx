@@ -59,6 +59,20 @@ export default function B3Page() {
   const isTablet = useIsTablet()
   const PAGE_SIZE = 10
 
+  const recentActivities = useMemo(() => {
+    if (apiData && apiData.length > 0) {
+      return apiData.slice(0, 5).map((tx) => {
+        const isIn = tx.category === 'b3in'
+        const type = isIn ? 'b3in' : 'b3out'
+        const title = isIn ? 'Transaksi B3 Masuk' : 'Transaksi B3 Keluar'
+        const message = `Pencatatan ${tx.type || 'Limbah B3'} (${tx.weightKg} kg)`
+        const timestamp = tx.date || new Date().toISOString()
+        return { id: tx.id, type, title, message, timestamp }
+      })
+    }
+    return NOTIFICATIONS.filter((n) => n.type === 'b3in' || n.type === 'b3out' || n.type === 'alert')
+  }, [apiData])
+
   const fetchData = () => {
     setLoading(true)
     getB3Transactions({
@@ -502,7 +516,7 @@ export default function B3Page() {
       {/* Recent Activity */}
       <div style={{ ...cardStyle, marginTop: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text, marginBottom: 14 }}>{t('recentActivity')}</div>
-        {NOTIFICATIONS.filter((n) => n.type === 'b3in' || n.type === 'b3out' || n.type === 'alert').map((n) => (
+        {recentActivities.map((n) => (
           <div key={n.id} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: `1px solid ${tokens.border}` }}>
             <div style={{
               width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
@@ -516,7 +530,15 @@ export default function B3Page() {
               <div style={{ fontSize: 13, fontWeight: 600, color: tokens.text }}>{n.title}</div>
               <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2 }}>{n.message}</div>
               <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>
-                {new Date(n.timestamp).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {(() => {
+                  try {
+                    const d = new Date(n.timestamp)
+                    if (isNaN(d.getTime())) return n.timestamp
+                    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  } catch {
+                    return n.timestamp
+                  }
+                })()}
               </div>
             </div>
           </div>
