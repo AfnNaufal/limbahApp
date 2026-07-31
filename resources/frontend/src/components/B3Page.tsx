@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
-import { useApp } from '../context'
+import { useApp, getPeriodDateRange } from '../context'
 import { getB3Transactions, updateB3Transaction, deleteB3Transaction } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import {
@@ -32,13 +32,12 @@ const YEARLY_DATA = [
 ]
 
 export default function B3Page() {
-  const { tokens, t, theme } = useApp()
+  const { tokens, t, theme, search, setSearch, year, periodFilter } = useApp()
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
   const [filterCat, setFilterCat] = useState<'all' | 'b3in' | 'b3out'>('all')
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'processed' | 'disposed'>('all')
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
-  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [apiData, setApiData] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -75,13 +74,14 @@ export default function B3Page() {
 
   const fetchData = () => {
     setLoading(true)
+    const periodRange = getPeriodDateRange(year, periodFilter)
     getB3Transactions({
       page,
       per_page: PAGE_SIZE,
       type: filterCat === 'all' ? undefined : filterCat === 'b3in' ? 'IN' : 'OUT',
       status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
-      from: filterFrom || undefined,
-      to: filterTo || undefined,
+      from: filterFrom || periodRange.from,
+      to: filterTo || periodRange.to,
     })
       .then((res) => {
         if (res?.data) {
@@ -113,7 +113,7 @@ export default function B3Page() {
 
   useEffect(() => {
     fetchData()
-  }, [page, filterCat, filterStatus, filterFrom, filterTo])
+  }, [page, filterCat, filterStatus, filterFrom, filterTo, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)
@@ -142,7 +142,7 @@ export default function B3Page() {
       setEditingTx(null)
       fetchData()
     } catch (err: any) {
-      alert(err.message || 'Gagal menyimpan perubahan')
+      alert(err.message || 'Gagal merubah transaksi')
     } finally {
       setSaving(false)
     }
@@ -166,11 +166,12 @@ export default function B3Page() {
 
   const isGlass = theme === 'frosted' || theme === 'liquid'
   const filtered = useMemo(() => {
+    const periodRange = getPeriodDateRange(year, periodFilter)
     return transactionsList.filter((tx) => {
       if (filterCat !== 'all' && tx.category !== filterCat) return false
       if (filterStatus !== 'all' && tx.status !== filterStatus) return false
-      if (filterFrom && tx.date < filterFrom) return false
-      if (filterTo && tx.date > filterTo) return false
+      if (filterFrom ? tx.date < filterFrom : tx.date < periodRange.from) return false
+      if (filterTo ? tx.date > filterTo : tx.date > periodRange.to) return false
       if (search) {
         const s = search.toLowerCase()
         return (
@@ -183,7 +184,7 @@ export default function B3Page() {
       }
       return true
     })
-  }, [transactionsList, filterCat, filterStatus, filterFrom, filterTo, search])
+  }, [transactionsList, filterCat, filterStatus, filterFrom, filterTo, search, year, periodFilter])
 
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -412,59 +413,64 @@ export default function B3Page() {
           </div>
         ) : (
           <>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: tokens.fontFamily }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${tokens.border}` }}>
-                    {['ID', t('date'), t('type'), t('source'), t('destination'), t('amount'), t('status'), 'Manifest', 'Foto', 'Aksi'].map((h) => (
-                      <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: tokens.textMuted, fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginated.map((tx, i) => (
-                    <tr key={tx.id} style={{ borderBottom: `1px solid ${tokens.border}`, background: i % 2 === 0 ? 'transparent' : `${tokens.border}40`, transition: 'background 0.1s' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = `${tokens.primary}10` }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : `${tokens.border}40` }}>
-                      <td style={{ padding: '8px 10px', color: tokens.primary, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{tx.id}</td>
-                      <td style={{ padding: '8px 10px', color: tokens.text, whiteSpace: 'nowrap' }}>{tx.date}</td>
-                      <td style={{ padding: '8px 10px', color: tokens.text }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: tx.category === 'b3in' ? tokens.chartB3In : tokens.chartB3Out, flexShrink: 0 }} />
-                          {tx.type}
-                        </div>
-                      </td>
-                      <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.source}</td>
-                      <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.destination}</td>
-                      <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+            {isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {paginated.map((tx) => (
+                  <div
+                    key={tx.id}
+                    style={{
+                      background: tokens.inputBg,
+                      border: `1px solid ${tokens.border}`,
+                      borderRadius: tokens.radius,
+                      padding: '12px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: tokens.primary, fontVariantNumeric: 'tabular-nums' }}>{tx.id}</span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
+                        background: `${STATUS_COLORS[tx.status] || '#3b82f6'}22`,
+                        color: STATUS_COLORS[tx.status] || '#3b82f6',
+                      }}>{t(tx.status) || tx.status}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: tokens.text }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: tx.category === 'b3in' ? tokens.chartB3In : tokens.chartB3Out, flexShrink: 0 }} />
+                        {tx.type}
+                      </div>
+                      <span style={{ fontWeight: 700, color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>
                         {(tx.amountKg ?? tx.weightKg ?? 0).toFixed(1)} kg
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <span style={{
-                          fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
-                          background: `${STATUS_COLORS[tx.status] || '#3b82f6'}22`,
-                          color: STATUS_COLORS[tx.status] || '#3b82f6',
-                        }}>{t(tx.status) || tx.status}</span>
-                      </td>
-                      <td style={{ padding: '8px 10px', color: tokens.textMuted, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{tx.manifest}</td>
-                      <td style={{ padding: '8px 10px' }}>
-                        {tx.scalePhotoUrl ? (
-                          <img
-                            src={tx.scalePhotoUrl}
-                            alt="Foto Timbangan"
-                            onClick={() => setPreviewImage(tx.scalePhotoUrl)}
-                            style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: `1px solid ${tokens.border}` }}
-                          />
-                        ) : (
-                          <span style={{ fontSize: 11, color: tokens.textMuted }}>-</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: tokens.textMuted }}>
+                      <div>📅 {tx.date}</div>
+                      <div>📄 Manifest: {tx.manifest}</div>
+                      <div>📍 {tx.category === 'b3in' ? `Dari: ${tx.source}` : `Ke: ${tx.destination}`}</div>
+                      <div>🚚 Transporter: {tx.transporter}</div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, paddingTop: 8, borderTop: `1px solid ${tokens.border}` }}>
+                      {tx.scalePhotoUrl ? (
+                        <img
+                          src={tx.scalePhotoUrl}
+                          alt="Foto Timbangan"
+                          onClick={() => setPreviewImage(tx.scalePhotoUrl)}
+                          style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: `1px solid ${tokens.border}` }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: 11, color: tokens.textMuted }}>-</span>
+                      )}
+
+                      <div style={{ display: 'flex', gap: 12 }}>
                         <button
                           type="button"
                           onClick={() => handleOpenEdit(tx)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, marginRight: 8, color: tokens.primary, fontWeight: 600 }}
-                          title="Edit Transaksi"
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.primary, fontWeight: 600 }}
                         >
                           ✏️ Edit
                         </button>
@@ -472,16 +478,86 @@ export default function B3Page() {
                           type="button"
                           onClick={() => setDeletingTx(tx)}
                           style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.danger, fontWeight: 600 }}
-                          title="Hapus Transaksi"
                         >
                           🗑️ Hapus
                         </button>
-                      </td>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: tokens.fontFamily }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid ${tokens.border}` }}>
+                      {['ID', t('date'), t('type'), t('source'), t('destination'), t('amount'), t('status'), 'Manifest', 'Foto', 'Aksi'].map((h) => (
+                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: tokens.textMuted, fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {paginated.map((tx, i) => (
+                      <tr key={tx.id} style={{ borderBottom: `1px solid ${tokens.border}`, background: i % 2 === 0 ? 'transparent' : `${tokens.border}40`, transition: 'background 0.1s' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = `${tokens.primary}10` }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : `${tokens.border}40` }}>
+                        <td style={{ padding: '8px 10px', color: tokens.primary, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{tx.id}</td>
+                        <td style={{ padding: '8px 10px', color: tokens.text, whiteSpace: 'nowrap' }}>{tx.date}</td>
+                        <td style={{ padding: '8px 10px', color: tokens.text }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: tx.category === 'b3in' ? tokens.chartB3In : tokens.chartB3Out, flexShrink: 0 }} />
+                            {tx.type}
+                          </div>
+                        </td>
+                        <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.source}</td>
+                        <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.destination}</td>
+                        <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                          {(tx.amountKg ?? tx.weightKg ?? 0).toFixed(1)} kg
+                        </td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{
+                            fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
+                            background: `${STATUS_COLORS[tx.status] || '#3b82f6'}22`,
+                            color: STATUS_COLORS[tx.status] || '#3b82f6',
+                          }}>{t(tx.status) || tx.status}</span>
+                        </td>
+                        <td style={{ padding: '8px 10px', color: tokens.textMuted, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{tx.manifest}</td>
+                        <td style={{ padding: '8px 10px' }}>
+                          {tx.scalePhotoUrl ? (
+                            <img
+                              src={tx.scalePhotoUrl}
+                              alt="Foto Timbangan"
+                              onClick={() => setPreviewImage(tx.scalePhotoUrl)}
+                              style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: `1px solid ${tokens.border}` }}
+                            />
+                          ) : (
+                            <span style={{ fontSize: 11, color: tokens.textMuted }}>-</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(tx)}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, marginRight: 8, color: tokens.primary, fontWeight: 600 }}
+                            title="Edit Transaksi"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingTx(tx)}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.danger, fontWeight: 600 }}
+                            title="Hapus Transaksi"
+                          >
+                            🗑️ Hapus
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: `1px solid ${tokens.border}`, flexWrap: 'wrap', gap: 10 }}>
               <span style={{ fontSize: 12, color: tokens.textMuted }}>
                 Menampilkan {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} dari {filtered.length} data

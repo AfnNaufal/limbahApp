@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../context'
 import { THEMES, type ThemeId, type ModeId } from '../theme'
 import { LANGUAGES } from '../i18n'
 import { useIsMobile } from '../hooks/useMediaQuery'
+import { getSystemSettings, updateSystemSettings } from '../api'
 
 function Section({ title, children, tokens }: { title: string; children: React.ReactNode; tokens: ReturnType<typeof useApp>['tokens'] }) {
   const { theme } = useApp()
@@ -65,7 +66,31 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const isMobile = useIsMobile()
 
-  const handleSave = () => {
+  useEffect(() => {
+    getSystemSettings()
+      .then((data) => {
+        if (data.notifEnabled !== undefined) setNotifEnabled(data.notifEnabled === 'true')
+        if (data.notifB3 !== undefined) setNotifB3(data.notifB3 === 'true')
+        if (data.notifDomestic !== undefined) setNotifDomestic(data.notifDomestic === 'true')
+      })
+      .catch(() => {
+        // Safe default fallback
+      })
+  }, [])
+
+  const handleSave = async () => {
+    try {
+      await updateSystemSettings({
+        notifEnabled: String(notifEnabled),
+        notifB3: String(notifB3),
+        notifDomestic: String(notifDomestic),
+        theme: String(theme),
+        mode: String(mode),
+        lang: String(lang),
+      })
+    } catch {
+      // Non-blocking fallback
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }

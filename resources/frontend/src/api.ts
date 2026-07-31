@@ -342,3 +342,22 @@ export async function markNotificationAsRead(id: number): Promise<ApiNotificatio
   if (res && 'data' in res) return res.data;
   return res as ApiNotification;
 }
+
+/* =========================================================
+   SYSTEM SETTINGS
+   ========================================================= */
+
+export async function getSystemSettings(): Promise<Record<string, string>> {
+  const res = await getApi<{ data: Record<string, string> }>('/api/settings');
+  return res?.data ?? {};
+}
+
+export async function updateSystemSettings(
+  settings: Record<string, any>,
+): Promise<Record<string, string>> {
+  const res = await postApi<{ data: Record<string, string> }, Record<string, any>>(
+    '/api/settings',
+    settings,
+  );
+  return res?.data ?? {};
+}

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\B3TransactionController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DomesticTransactionController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\SystemSettingController;
 use App\Http\Controllers\Api\WasteCategoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,12 @@ Route::apiResource('domestic-transactions', DomesticTransactionController::class
 Route::prefix('notifications')->group(function () {
     Route::get('/', [NotificationController::class, 'index']);
     Route::post('{notification}/read', [NotificationController::class, 'markAsRead']);
+});
+
+// System Settings
+Route::prefix('settings')->group(function () {
+    Route::get('/', [SystemSettingController::class, 'index']);
+    Route::post('/', [SystemSettingController::class, 'update']);
 });
 
 // Dashboard & Analytics

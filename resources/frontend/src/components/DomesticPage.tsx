@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
-import { useApp } from '../context'
+import { useApp, getPeriodDateRange } from '../context'
 import { getDomesticTransactions, updateDomesticTransaction, deleteDomesticTransaction } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import {
@@ -32,11 +32,10 @@ const YEARLY_DATA = [
 ]
 
 export default function DomesticPage() {
-  const { tokens, t, theme } = useApp()
+  const { tokens, t, theme, search, setSearch, year, periodFilter } = useApp()
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
   const [filterSession, setFilterSession] = useState<'all' | 'morning' | 'afternoon'>('all')
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'processed' | 'disposed'>('all')
-  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [apiData, setApiData] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -70,11 +69,14 @@ export default function DomesticPage() {
 
   const fetchData = () => {
     setLoading(true)
+    const periodRange = getPeriodDateRange(year, periodFilter)
     getDomesticTransactions({
       page,
       per_page: PAGE_SIZE,
       session: filterSession === 'all' ? undefined : (filterSession.toUpperCase() as 'MORNING' | 'AFTERNOON'),
       status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
+      from: periodRange.from,
+      to: periodRange.to,
     })
       .then((res) => {
         if (res?.data) {
@@ -102,7 +104,7 @@ export default function DomesticPage() {
 
   useEffect(() => {
     fetchData()
-  }, [page, filterSession, filterStatus])
+  }, [page, filterSession, filterStatus, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)
@@ -151,16 +153,24 @@ export default function DomesticPage() {
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
   const filtered = useMemo(() => {
+    const periodRange = getPeriodDateRange(year, periodFilter)
     return transactionsList.filter((tx) => {
       if (filterSession !== 'all' && tx.session !== filterSession) return false
       if (filterStatus !== 'all' && tx.status !== filterStatus) return false
+      if (tx.date && (tx.date < periodRange.from || tx.date > periodRange.to)) return false
       if (search) {
         const s = search.toLowerCase()
-        return String(tx.id).toLowerCase().includes(s) || String(tx.picName).toLowerCase().includes(s)
+        return (
+          String(tx.id).toLowerCase().includes(s) ||
+          String(tx.picName || '').toLowerCase().includes(s) ||
+          String(tx.processingMethod || tx.processing_method || '').toLowerCase().includes(s) ||
+          String(tx.notes || '').toLowerCase().includes(s) ||
+          String(tx.session || '').toLowerCase().includes(s)
+        )
       }
       return true
     })
-  }, [transactionsList, filterSession, filterStatus, search])
+  }, [transactionsList, filterSession, filterStatus, search, year, periodFilter])
 
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -316,64 +326,130 @@ export default function DomesticPage() {
           </div>
         ) : (
           <>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: tokens.fontFamily }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${tokens.border}` }}>
-                    {['ID', t('date'), t('session'), 'Organik (kg)', 'Anorganik (kg)', 'Total (kg)', t('status'), 'PIC', 'Aksi'].map((h) => (
-                      <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: tokens.textMuted, fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginated.map((tx, i) => (
-                    <tr key={tx.id} style={{ borderBottom: `1px solid ${tokens.border}`, background: i % 2 === 0 ? 'transparent' : `${tokens.border}40`, transition: 'background 0.1s' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = `${tokens.primary}10` }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : `${tokens.border}40` }}>
-                      <td style={{ padding: '8px 10px', color: tokens.primary, fontWeight: 600 }}>{tx.id}</td>
-                      <td style={{ padding: '8px 10px', color: tokens.text, whiteSpace: 'nowrap' }}>{tx.date}</td>
-                      <td style={{ padding: '8px 10px' }}>
+            {isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {paginated.map((tx) => (
+                  <div
+                    key={tx.id}
+                    style={{
+                      background: tokens.inputBg,
+                      border: `1px solid ${tokens.border}`,
+                      borderRadius: tokens.radius,
+                      padding: '12px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: tokens.primary }}>{tx.id}</span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
+                        background: tx.session === 'morning' ? `${tokens.chartDomMorning}22` : `${tokens.chartDomAfternoon}22`,
+                        color: tx.session === 'morning' ? tokens.chartDomMorning : tokens.chartDomAfternoon,
+                      }}>
+                        {tx.session === 'morning' ? '☀ Pagi' : '🌅 Sore'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                      <span style={{ color: tokens.textMuted }}>📅 {tx.date}</span>
+                      <span style={{ fontWeight: 700, color: tokens.text, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+                        Total: {(tx.totalKg ?? 0).toFixed(1)} kg
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: tokens.textMuted }}>
+                      <div>🌱 Organik: {(tx.organicKg ?? 0).toFixed(1)} kg</div>
+                      <div>📦 Anorganik: {(tx.inorganicKg ?? 0).toFixed(1)} kg</div>
+                      <div>👤 PIC: {tx.picName}</div>
+                      <div>
                         <span style={{
-                          fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
-                          background: tx.session === 'morning' ? `${tokens.chartDomMorning}22` : `${tokens.chartDomAfternoon}22`,
-                          color: tx.session === 'morning' ? tokens.chartDomMorning : tokens.chartDomAfternoon,
-                        }}>
-                          {tx.session === 'morning' ? '☀ Pagi' : '🌅 Sore'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{(tx.organicKg ?? 0).toFixed(1)}</td>
-                      <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{(tx.inorganicKg ?? 0).toFixed(1)}</td>
-                      <td style={{ padding: '8px 10px', color: tokens.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{(tx.totalKg ?? 0).toFixed(1)}</td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <span style={{
-                          fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
+                          fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3,
                           background: `${STATUS_COLORS[tx.status] || '#3b82f6'}22`, color: STATUS_COLORS[tx.status] || '#3b82f6',
                         }}>{t(tx.status) || tx.status}</span>
-                      </td>
-                      <td style={{ padding: '8px 10px', color: tokens.textMuted }}>{tx.picName}</td>
-                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(tx)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, marginRight: 8, color: tokens.primary, fontWeight: 600 }}
-                          title="Edit Transaksi"
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeletingTx(tx)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.danger, fontWeight: 600 }}
-                          title="Hapus Transaksi"
-                        >
-                          🗑️ Hapus
-                        </button>
-                      </td>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 4, paddingTop: 8, borderTop: `1px solid ${tokens.border}` }}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(tx)}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.primary, fontWeight: 600 }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeletingTx(tx)}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.danger, fontWeight: 600 }}
+                      >
+                        🗑️ Hapus
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: tokens.fontFamily }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid ${tokens.border}` }}>
+                      {['ID', t('date'), t('session'), 'Organik (kg)', 'Anorganik (kg)', 'Total (kg)', t('status'), 'PIC', 'Aksi'].map((h) => (
+                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: tokens.textMuted, fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {paginated.map((tx, i) => (
+                      <tr key={tx.id} style={{ borderBottom: `1px solid ${tokens.border}`, background: i % 2 === 0 ? 'transparent' : `${tokens.border}40`, transition: 'background 0.1s' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = `${tokens.primary}10` }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : `${tokens.border}40` }}>
+                        <td style={{ padding: '8px 10px', color: tokens.primary, fontWeight: 600 }}>{tx.id}</td>
+                        <td style={{ padding: '8px 10px', color: tokens.text, whiteSpace: 'nowrap' }}>{tx.date}</td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{
+                            fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
+                            background: tx.session === 'morning' ? `${tokens.chartDomMorning}22` : `${tokens.chartDomAfternoon}22`,
+                            color: tx.session === 'morning' ? tokens.chartDomMorning : tokens.chartDomAfternoon,
+                          }}>
+                            {tx.session === 'morning' ? '☀ Pagi' : '🌅 Sore'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{(tx.organicKg ?? 0).toFixed(1)}</td>
+                        <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{(tx.inorganicKg ?? 0).toFixed(1)}</td>
+                        <td style={{ padding: '8px 10px', color: tokens.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{(tx.totalKg ?? 0).toFixed(1)}</td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{
+                            fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
+                            background: `${STATUS_COLORS[tx.status] || '#3b82f6'}22`, color: STATUS_COLORS[tx.status] || '#3b82f6',
+                          }}>{t(tx.status) || tx.status}</span>
+                        </td>
+                        <td style={{ padding: '8px 10px', color: tokens.textMuted }}>{tx.picName}</td>
+                        <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(tx)}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, marginRight: 8, color: tokens.primary, fontWeight: 600 }}
+                            title="Edit Transaksi"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingTx(tx)}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.danger, fontWeight: 600 }}
+                            title="Hapus Transaksi"
+                          >
+                            🗑️ Hapus
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: `1px solid ${tokens.border}`, flexWrap: 'wrap', gap: 10 }}>
               <span style={{ fontSize: 12, color: tokens.textMuted }}>
                 {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} dari {filtered.length}

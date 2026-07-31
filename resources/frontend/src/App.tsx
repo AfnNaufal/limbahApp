@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { AppProvider, useApp } from './context'
 import SplashScreen from './components/SplashScreen'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
-import Dashboard from './components/Dashboard'
-import B3Page from './components/B3Page'
-import DomesticPage from './components/DomesticPage'
-import SettingsPage from './components/SettingsPage'
-import InputB3IncomingPage from './components/InputB3IncomingPage'
-import InputB3OutgoingPage from './components/InputB3OutgoingPage'
-import InputDomesticIncomingPage from './components/InputDomesticIncomingPage'
-import InputDomesticOutgoingPage from './components/InputDomesticOutgoingPage'
+
+const Dashboard = lazy(() => import('./components/Dashboard'))
+const B3Page = lazy(() => import('./components/B3Page'))
+const DomesticPage = lazy(() => import('./components/DomesticPage'))
+const SettingsPage = lazy(() => import('./components/SettingsPage'))
+const InputB3IncomingPage = lazy(() => import('./components/InputB3IncomingPage'))
+const InputB3OutgoingPage = lazy(() => import('./components/InputB3OutgoingPage'))
+const InputDomesticIncomingPage = lazy(() => import('./components/InputDomesticIncomingPage'))
+const InputDomesticOutgoingPage = lazy(() => import('./components/InputDomesticOutgoingPage'))
 
 function MainLayout() {
   const { tokens, page, isRTL, theme } = useApp()
@@ -50,14 +51,20 @@ function MainLayout() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
         <Header />
         <main style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {page === 'dashboard' && <Dashboard />}
-          {page === 'b3' && <B3Page />}
-          {page === 'domestic' && <DomesticPage />}
-          {page === 'b3-in' && <InputB3IncomingPage />}
-          {page === 'b3-out' && <InputB3OutgoingPage />}
-          {page === 'waste-in' && <InputDomesticIncomingPage />}
-          {page === 'waste-out' && <InputDomesticOutgoingPage />}
-          {page === 'settings' && <SettingsPage />}
+          <Suspense fallback={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: tokens.textMuted, fontSize: 13 }}>
+              Memuat...
+            </div>
+          }>
+            {page === 'dashboard' && <Dashboard />}
+            {page === 'b3' && <B3Page />}
+            {page === 'domestic' && <DomesticPage />}
+            {page === 'b3-in' && <InputB3IncomingPage />}
+            {page === 'b3-out' && <InputB3OutgoingPage />}
+            {page === 'waste-in' && <InputDomesticIncomingPage />}
+            {page === 'waste-out' && <InputDomesticOutgoingPage />}
+            {page === 'settings' && <SettingsPage />}
+          </Suspense>
         </main>
       </div>
 

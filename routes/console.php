@@ -9,6 +9,4 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::call(function (B3TransactionService $service) {
-    $service->checkAndCreateStorageAlerts();
-})->daily()->name('check-b3-storage-alerts');
+Schedule::command('limbah:check-alerts')->dailyAt('07:00')->name('check-b3-storage-alerts');
