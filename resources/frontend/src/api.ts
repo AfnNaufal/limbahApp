@@ -116,6 +116,37 @@ export async function getDashboardSummary(): Promise<DashboardSummaryData> {
   return response;
 }
 
+export type DashboardTrendItem = {
+  month: string;
+  month_name: string;
+  b3_in_weight_kg: number;
+  b3_out_weight_kg: number;
+  b3_weight_kg: number;
+  domestic_organic_kg: number;
+  domestic_inorganic_kg: number;
+  domestic_weight_kg: number;
+};
+
+export type CategoryBreakdownItem = {
+  category_id: number;
+  category_name: string;
+  category_code: string;
+  transaction_count: number;
+  total_weight_kg: number;
+  in_count: number;
+  out_count: number;
+};
+
+export async function getDashboardTrends(months = 12): Promise<DashboardTrendItem[]> {
+  const res = await getApi<{ trends: DashboardTrendItem[] }>(`/api/dashboard/trends?months=${months}`);
+  return res?.trends ?? [];
+}
+
+export async function getDashboardCategoryBreakdown(): Promise<CategoryBreakdownItem[]> {
+  const res = await getApi<{ categories: CategoryBreakdownItem[] }>('/api/dashboard/category-breakdown');
+  return res?.categories ?? [];
+}
+
 /* =========================================================
    B3 TRANSACTIONS
    ========================================================= */

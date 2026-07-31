@@ -4,7 +4,10 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { useApp } from '../context'
-import { getDashboardSummary, type DashboardSummaryData } from '../api'
+import {
+  getDashboardSummary, getDashboardTrends, getDashboardCategoryBreakdown,
+  type DashboardSummaryData, type DashboardTrendItem, type CategoryBreakdownItem,
+} from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import {
   MONTHLY_B3_IN, MONTHLY_B3_OUT, MONTHLY_DOM_AFTERNOON, MONTHLY_DOM_MORNING,
@@ -378,6 +381,8 @@ export default function Dashboard() {
   const { tokens, setPage, t } = useApp()
   const [preview, setPreview] = useState<string | null>(null)
   const [summaryData, setSummaryData] = useState<DashboardSummaryData | null>(null)
+  const [trendsData, setTrendsData] = useState<DashboardTrendItem[] | null>(null)
+  const [breakdownData, setBreakdownData] = useState<CategoryBreakdownItem[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState(false)
   const isMobile = useIsMobile()
@@ -390,8 +395,16 @@ export default function Dashboard() {
       try {
         setLoading(true)
         setApiError(false)
-        const data = await getDashboardSummary()
-        if (active) setSummaryData(data)
+        const [summary, trends, breakdown] = await Promise.all([
+          getDashboardSummary().catch(() => null),
+          getDashboardTrends().catch(() => null),
+          getDashboardCategoryBreakdown().catch(() => null),
+        ])
+        if (active) {
+          if (summary) setSummaryData(summary)
+          if (trends) setTrendsData(trends)
+          if (breakdown) setBreakdownData(breakdown)
+        }
       } catch (error) {
         console.error('Failed to load dashboard summary:', error)
         if (active) setApiError(true)
@@ -411,15 +424,35 @@ export default function Dashboard() {
   const domesticOrganicWeight = Number(summaryData?.domestic_today_organic_kg) || SUMMARY_STATS.domMorning.total
   const domesticInorganicWeight = Number(summaryData?.domestic_today_inorganic_kg) || SUMMARY_STATS.domAfternoon.total
 
+  const monthlyB3In = trendsData && trendsData.length > 0
+    ? trendsData.map((t) => ({ name: t.month_name, value: t.b3_in_weight_kg }))
+    : MONTHLY_B3_IN.map((item) => ({ name: item.month, value: item.value }))
+
+  const monthlyB3Out = trendsData && trendsData.length > 0
+    ? trendsData.map((t) => ({ name: t.month_name, value: t.b3_out_weight_kg }))
+    : MONTHLY_B3_OUT.map((item) => ({ name: item.month, value: item.value }))
+
+  const monthlyDomOrganic = trendsData && trendsData.length > 0
+    ? trendsData.map((t) => ({ name: t.month_name, value: t.domestic_organic_kg }))
+    : MONTHLY_DOM_MORNING.map((item) => ({ name: item.month, value: item.value }))
+
+  const monthlyDomInorganic = trendsData && trendsData.length > 0
+    ? trendsData.map((t) => ({ name: t.month_name, value: t.domestic_inorganic_kg }))
+    : MONTHLY_DOM_AFTERNOON.map((item) => ({ name: item.month, value: item.value }))
+
+  const b3PieData = breakdownData && breakdownData.length > 0
+    ? breakdownData.map((b) => ({ name: b.category_name, value: b.total_weight_kg }))
+    : PIE_B3_IN
+
   const categories: CategoryConfig[] = [
     {
       id: 'b3in',
       labelKey: t('b3InTitle'),
       color: tokens.chartB3In,
-      barData: MONTHLY_B3_IN.map((item) => ({ name: item.month, value: item.value })),
+      barData: monthlyB3In,
       weeklyData: WEEKLY_B3_IN.map((item) => ({ name: item.week, value: item.value })),
-      monthlyData: MONTHLY_B3_IN.map((item) => ({ name: item.month, value: item.value })),
-      pieData: PIE_B3_IN,
+      monthlyData: monthlyB3In,
+      pieData: b3PieData,
       stats: {
         total: b3InWeight,
         change: SUMMARY_STATS.b3In.change,
@@ -431,9 +464,9 @@ export default function Dashboard() {
       id: 'b3out',
       labelKey: t('b3OutTitle'),
       color: tokens.chartB3Out,
-      barData: MONTHLY_B3_OUT.map((item) => ({ name: item.month, value: item.value })),
+      barData: monthlyB3Out,
       weeklyData: WEEKLY_B3_OUT.map((item) => ({ name: item.week, value: item.value })),
-      monthlyData: MONTHLY_B3_OUT.map((item) => ({ name: item.month, value: item.value })),
+      monthlyData: monthlyB3Out,
       pieData: PIE_B3_OUT,
       stats: {
         total: b3OutWeight,
@@ -446,9 +479,9 @@ export default function Dashboard() {
       id: 'domMorning',
       labelKey: t('domesticOrganicTitle'),
       color: tokens.chartDomMorning,
-      barData: MONTHLY_DOM_MORNING.map((item) => ({ name: item.month, value: item.value })),
+      barData: monthlyDomOrganic,
       weeklyData: WEEKLY_DOM_MORNING.map((item) => ({ name: item.week, value: item.value })),
-      monthlyData: MONTHLY_DOM_MORNING.map((item) => ({ name: item.month, value: item.value })),
+      monthlyData: monthlyDomOrganic,
       pieData: PIE_DOM_MORNING,
       stats: {
         total: domesticOrganicWeight,
@@ -461,9 +494,9 @@ export default function Dashboard() {
       id: 'domAfternoon',
       labelKey: t('domesticInorganicTitle'),
       color: tokens.chartDomAfternoon,
-      barData: MONTHLY_DOM_AFTERNOON.map((item) => ({ name: item.month, value: item.value })),
+      barData: monthlyDomInorganic,
       weeklyData: WEEKLY_DOM_AFTERNOON.map((item) => ({ name: item.week, value: item.value })),
-      monthlyData: MONTHLY_DOM_AFTERNOON.map((item) => ({ name: item.month, value: item.value })),
+      monthlyData: monthlyDomInorganic,
       pieData: PIE_DOM_AFTERNOON,
       stats: {
         total: domesticInorganicWeight,

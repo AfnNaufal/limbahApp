@@ -186,21 +186,22 @@ class DashboardService
             $from = $date->clone()->startOfMonth();
             $to = $date->clone()->endOfMonth();
 
-            $b3Stats = B3Transaction::byDateRange($from, $to)
-                ->selectRaw('COUNT(*) as agg_count, COALESCE(SUM(weight_kg), 0) as total_weight')
-                ->first();
+            $b3InWeight = (float) B3Transaction::byDateRange($from, $to)->where('transaction_type', 'IN')->sum('weight_kg');
+            $b3OutWeight = (float) B3Transaction::byDateRange($from, $to)->where('transaction_type', 'OUT')->sum('weight_kg');
 
-            $domesticStats = DomesticTransaction::byDateRange($from, $to)
-                ->selectRaw('COUNT(*) as agg_count, COALESCE(SUM(total_weight_kg), 0) as total_weight')
-                ->first();
+            $domOrganicWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('organic_weight_kg');
+            $domInorganicWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('inorganic_weight_kg');
+            $domTotalWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('total_weight_kg');
 
             $trends[] = [
                 'month' => $date->format('Y-m'),
-                'month_name' => $date->format('F Y'),
-                'b3_count' => (int) ($b3Stats->agg_count ?? 0),
-                'b3_weight_kg' => (float) ($b3Stats->total_weight ?? 0),
-                'domestic_count' => (int) ($domesticStats->agg_count ?? 0),
-                'domestic_weight_kg' => (float) ($domesticStats->total_weight ?? 0),
+                'month_name' => $date->format('M Y'),
+                'b3_in_weight_kg' => $b3InWeight,
+                'b3_out_weight_kg' => $b3OutWeight,
+                'b3_weight_kg' => $b3InWeight + $b3OutWeight,
+                'domestic_organic_kg' => $domOrganicWeight,
+                'domestic_inorganic_kg' => $domInorganicWeight,
+                'domestic_weight_kg' => $domTotalWeight > 0 ? $domTotalWeight : ($domOrganicWeight + $domInorganicWeight),
             ];
         }
 
