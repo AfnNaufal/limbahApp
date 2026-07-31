@@ -73,22 +73,28 @@ class DashboardService
             ->get();
 
         return $alerts->map(function ($alert) {
+            $tx = data_get($alert, 'b3Transaction') ?? data_get($alert, 'b3_transaction');
+            $deadline = data_get($alert, 'deadline_at');
+            $deadlineCarbon = $deadline ? (is_string($deadline) ? Carbon::parse($deadline) : $deadline) : null;
+            $triggered = data_get($alert, 'triggered_at');
+
             return [
-                'id' => $alert->id,
-                'alert_type' => $alert->alert_type,
-                'deadline_at' => $alert->deadline_at->toIso8601String(),
-                'is_expired' => $alert->deadline_at->isPast(),
-                'days_until_deadline' => $alert->deadline_at->diffInDays(now(), false),
-                'is_triggered' => $alert->triggered_at !== null,
-                'triggered_at' => $alert->triggered_at?->toIso8601String(),
-                'b3_transaction' => [
-                    'id' => $alert->b3Transaction->id,
-                    'waste_code' => $alert->b3Transaction->waste_code,
-                    'waste_name' => $alert->b3Transaction->waste_name,
-                    'transaction_type' => $alert->b3Transaction->transaction_type,
-                    'weight_kg' => $alert->b3Transaction->weight_kg,
-                    'status' => $alert->b3Transaction->status,
-                ],
+                'id' => data_get($alert, 'id'),
+                'alert_type' => data_get($alert, 'alert_type'),
+                'is_active' => (bool) (data_get($alert, 'is_active') ?? true),
+                'deadline_at' => $deadlineCarbon?->toIso8601String(),
+                'is_expired' => $deadlineCarbon?->isPast() ?? false,
+                'days_until_deadline' => $deadlineCarbon ? $deadlineCarbon->diffInDays(now(), false) : 0,
+                'is_triggered' => $triggered !== null,
+                'triggered_at' => $triggered ? (is_string($triggered) ? Carbon::parse($triggered)->toIso8601String() : $triggered->toIso8601String()) : null,
+                'b3_transaction' => $tx ? [
+                    'id' => data_get($tx, 'id'),
+                    'waste_code' => data_get($tx, 'waste_code'),
+                    'waste_name' => data_get($tx, 'waste_name'),
+                    'transaction_type' => data_get($tx, 'transaction_type'),
+                    'weight_kg' => data_get($tx, 'weight_kg'),
+                    'status' => data_get($tx, 'status'),
+                ] : null,
             ];
         })->toArray();
     }
@@ -180,18 +186,21 @@ class DashboardService
             $from = $date->clone()->startOfMonth();
             $to = $date->clone()->endOfMonth();
 
-            $b3Count = B3Transaction::byDateRange($from, $to)->count();
-            $domesticCount = DomesticTransaction::byDateRange($from, $to)->count();
-            $b3Weight = (float) B3Transaction::byDateRange($from, $to)->sum('weight_kg');
-            $domesticWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('total_weight_kg');
+            $b3Stats = B3Transaction::byDateRange($from, $to)
+                ->selectRaw('COUNT(*) as agg_count, COALESCE(SUM(weight_kg), 0) as total_weight')
+                ->first();
+
+            $domesticStats = DomesticTransaction::byDateRange($from, $to)
+                ->selectRaw('COUNT(*) as agg_count, COALESCE(SUM(total_weight_kg), 0) as total_weight')
+                ->first();
 
             $trends[] = [
                 'month' => $date->format('Y-m'),
                 'month_name' => $date->format('F Y'),
-                'b3_count' => $b3Count,
-                'b3_weight_kg' => $b3Weight,
-                'domestic_count' => $domesticCount,
-                'domestic_weight_kg' => $domesticWeight,
+                'b3_count' => (int) ($b3Stats->agg_count ?? 0),
+                'b3_weight_kg' => (float) ($b3Stats->total_weight ?? 0),
+                'domestic_count' => (int) ($domesticStats->agg_count ?? 0),
+                'domestic_weight_kg' => (float) ($domesticStats->total_weight ?? 0),
             ];
         }
 
@@ -203,22 +212,30 @@ class DashboardService
      */
     public function getCategoryBreakdown(): array
     {
-        $categories = B3Transaction::with('wasteCategory')
+        return B3Transaction::join('waste_categories', 'b3_transactions.waste_category_id', '=', 'waste_categories.id')
+            ->selectRaw('
+                waste_categories.id as category_id,
+                waste_categories.name as category_name,
+                waste_categories.code as category_code,
+                COUNT(*) as transaction_count,
+                COALESCE(SUM(b3_transactions.weight_kg), 0) as total_weight_kg,
+                SUM(CASE WHEN b3_transactions.transaction_type = "IN" THEN 1 ELSE 0 END) as in_count,
+                SUM(CASE WHEN b3_transactions.transaction_type = "OUT" THEN 1 ELSE 0 END) as out_count
+            ')
+            ->groupBy('waste_categories.id', 'waste_categories.name', 'waste_categories.code')
             ->get()
-            ->groupBy('waste_category_id');
-
-        return $categories->map(function ($transactions, $categoryId) {
-            $firstTx = $transactions->first();
-            return [
-                'category_id' => $categoryId,
-                'category_name' => $firstTx->wasteCategory->name,
-                'category_code' => $firstTx->wasteCategory->code,
-                'transaction_count' => $transactions->count(),
-                'total_weight_kg' => (float) $transactions->sum('weight_kg'),
-                'in_count' => $transactions->where('transaction_type', 'IN')->count(),
-                'out_count' => $transactions->where('transaction_type', 'OUT')->count(),
-            ];
-        })->values()->toArray();
+            ->map(function ($row) {
+                return [
+                    'category_id' => (int) $row->category_id,
+                    'category_name' => $row->category_name,
+                    'category_code' => $row->category_code,
+                    'transaction_count' => (int) $row->transaction_count,
+                    'total_weight_kg' => (float) $row->total_weight_kg,
+                    'in_count' => (int) $row->in_count,
+                    'out_count' => (int) $row->out_count,
+                ];
+            })
+            ->toArray();
     }
 
     /**

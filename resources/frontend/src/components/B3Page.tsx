@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
 import { useApp } from '../context'
-import { getB3Transactions } from '../api'
+import { getB3Transactions, updateB3Transaction, deleteB3Transaction } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import {
   B3_TRANSACTIONS, MONTHLY_B3_IN, MONTHLY_B3_OUT,
@@ -42,16 +42,38 @@ export default function B3Page() {
   const [page, setPage] = useState(1)
   const [apiData, setApiData] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [editingTx, setEditingTx] = useState<any | null>(null)
+  const [deletingTx, setDeletingTx] = useState<any | null>(null)
+  const [editForm, setEditForm] = useState({
+    weight_kg: '',
+    status: 'PENDING',
+    source: '',
+    destination: '',
+    manifest_number: '',
+    notes: '',
+  })
+  const [saving, setSaving] = useState(false)
+
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const PAGE_SIZE = 10
 
-  useEffect(() => {
-    getB3Transactions(page, PAGE_SIZE, filterCat, filterStatus)
+  const fetchData = () => {
+    setLoading(true)
+    getB3Transactions({
+      page,
+      per_page: PAGE_SIZE,
+      type: filterCat === 'all' ? undefined : filterCat === 'b3in' ? 'IN' : 'OUT',
+      status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
+      from: filterFrom || undefined,
+      to: filterTo || undefined,
+    })
       .then((res) => {
         if (res?.data) {
           const mapped = res.data.map((item: any) => ({
             id: `B3-${item.id}`,
+            rawId: item.id,
             date: item.date,
             category: item.transaction_type === 'IN' ? 'b3in' : 'b3out',
             type: item.waste_name,
@@ -62,6 +84,8 @@ export default function B3Page() {
             destination: item.destination || '-',
             transporter: item.transporter || '-',
             manifest: item.manifest_number || '-',
+            scalePhotoUrl: item.scale_photo_url || null,
+            notes: item.notes || '',
           }))
           setApiData(mapped)
         }
@@ -71,7 +95,58 @@ export default function B3Page() {
         console.error('Failed to load B3 transactions:', err)
         setLoading(false)
       })
-  }, [page, filterCat, filterStatus])
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [page, filterCat, filterStatus, filterFrom, filterTo])
+
+  const handleOpenEdit = (tx: any) => {
+    setEditingTx(tx)
+    setEditForm({
+      weight_kg: String(tx.amountKg ?? tx.weightKg ?? ''),
+      status: String(tx.status).toUpperCase(),
+      source: tx.source === '-' ? '' : tx.source,
+      destination: tx.destination === '-' ? '' : tx.destination,
+      manifest_number: tx.manifest === '-' ? '' : tx.manifest,
+      notes: tx.notes || '',
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingTx) return
+    try {
+      setSaving(true)
+      await updateB3Transaction(editingTx.rawId, {
+        weight_kg: Number(editForm.weight_kg),
+        status: editForm.status,
+        source: editForm.source || null,
+        destination: editForm.destination || null,
+        manifest_number: editForm.manifest_number || null,
+        notes: editForm.notes || null,
+      })
+      setEditingTx(null)
+      fetchData()
+    } catch (err: any) {
+      alert(err.message || 'Gagal menyimpan perubahan')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletingTx) return
+    try {
+      setSaving(true)
+      await deleteB3Transaction(deletingTx.rawId)
+      setDeletingTx(null)
+      fetchData()
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus transaksi')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const transactionsList = apiData ?? B3_TRANSACTIONS
 
@@ -327,7 +402,7 @@ export default function B3Page() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: tokens.fontFamily }}>
                 <thead>
                   <tr style={{ borderBottom: `2px solid ${tokens.border}` }}>
-                    {['ID', t('date'), t('type'), t('source'), t('destination'), t('amount'), t('status'), 'Manifest'].map((h) => (
+                    {['ID', t('date'), t('type'), t('source'), t('destination'), t('amount'), t('status'), 'Manifest', 'Foto', 'Aksi'].map((h) => (
                       <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: tokens.textMuted, fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
                     ))}
                   </tr>
@@ -358,6 +433,36 @@ export default function B3Page() {
                         }}>{t(tx.status) || tx.status}</span>
                       </td>
                       <td style={{ padding: '8px 10px', color: tokens.textMuted, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{tx.manifest}</td>
+                      <td style={{ padding: '8px 10px' }}>
+                        {tx.scalePhotoUrl ? (
+                          <img
+                            src={tx.scalePhotoUrl}
+                            alt="Foto Timbangan"
+                            onClick={() => setPreviewImage(tx.scalePhotoUrl)}
+                            style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: `1px solid ${tokens.border}` }}
+                          />
+                        ) : (
+                          <span style={{ fontSize: 11, color: tokens.textMuted }}>-</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(tx)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, marginRight: 8, color: tokens.primary, fontWeight: 600 }}
+                          title="Edit Transaksi"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingTx(tx)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.danger, fontWeight: 600 }}
+                          title="Hapus Transaksi"
+                        >
+                          🗑️ Hapus
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -417,6 +522,196 @@ export default function B3Page() {
           </div>
         ))}
       </div>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div
+          onClick={() => setPreviewImage(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative', background: tokens.card, border: `1px solid ${tokens.cardBorder}`,
+              borderRadius: tokens.radius, padding: 16, maxWidth: '90vw', maxHeight: '90vh',
+              boxShadow: tokens.shadow, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+            }}
+          >
+            <img
+              src={previewImage}
+              alt="Foto Timbangan Presisi"
+              style={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: tokens.radius, objectFit: 'contain' }}
+            />
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              style={{
+                padding: '6px 16px', background: tokens.primary, color: tokens.textInverse,
+                border: 'none', borderRadius: tokens.radius, cursor: 'pointer', fontSize: 12,
+                fontWeight: 600, fontFamily: tokens.fontFamily,
+              }}
+            >
+              Tutup Pratinjau
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingTx && (
+        <div
+          onClick={() => setEditingTx(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 110,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 480, background: tokens.card, border: `1px solid ${tokens.cardBorder}`,
+              borderRadius: tokens.radius, padding: 20, boxShadow: tokens.shadow, display: 'flex', flexDirection: 'column', gap: 14,
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, color: tokens.text }}>Edit Transaksi {editingTx.id}</div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Jumlah Berat (kg)</label>
+                <input
+                  type="number" step="0.1" min="0"
+                  value={editForm.weight_kg}
+                  onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })}
+                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Status Transaksi</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
+                >
+                  <option value="PENDING">PENDING</option>
+                  <option value="RECEIVED">RECEIVED</option>
+                  <option value="PROCESSED">PROCESSED</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="REJECTED">REJECTED</option>
+                </select>
+              </div>
+
+              {editingTx.category === 'b3in' ? (
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Sumber Limbah</label>
+                  <input
+                    type="text"
+                    value={editForm.source}
+                    onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
+                    style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Tujuan Penyerahan</label>
+                  <input
+                    type="text"
+                    value={editForm.destination}
+                    onChange={(e) => setEditForm({ ...editForm, destination: e.target.value })}
+                    style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Nomor Manifest</label>
+                <input
+                  type="text"
+                  value={editForm.manifest_number}
+                  onChange={(e) => setEditForm({ ...editForm, manifest_number: e.target.value })}
+                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Catatan</label>
+                <textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  rows={2}
+                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text, resize: 'vertical' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setEditingTx(null)}
+                style={{ padding: '7px 14px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: 'pointer' }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={saving}
+                style={{ padding: '7px 14px', background: tokens.primary, border: 'none', borderRadius: tokens.radius, fontSize: 12, color: tokens.textInverse, fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}
+              >
+                {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingTx && (
+        <div
+          onClick={() => setDeletingTx(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 110,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 400, background: tokens.card, border: `1px solid ${tokens.cardBorder}`,
+              borderRadius: tokens.radius, padding: 20, boxShadow: tokens.shadow, display: 'flex', flexDirection: 'column', gap: 14,
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, color: tokens.danger }}>Konfirmasi Hapus Transaksi</div>
+            <div style={{ fontSize: 13, color: tokens.text }}>
+              Apakah Anda yakin ingin menghapus data transaksi <strong>{deletingTx.id}</strong> ({deletingTx.type})?
+            </div>
+            <div style={{ fontSize: 11, color: tokens.textMuted }}>
+              Data ini akan diarsipkan (soft delete) dan tetap tersimpan di database untuk audit.
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setDeletingTx(null)}
+                style={{ padding: '7px 14px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: 'pointer' }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={saving}
+                style={{ padding: '7px 14px', background: tokens.danger, border: 'none', borderRadius: tokens.radius, fontSize: 12, color: '#fff', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}
+              >
+                {saving ? 'Menghapus...' : 'Ya, Hapus Transaksi'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

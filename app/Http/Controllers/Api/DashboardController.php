@@ -6,9 +6,9 @@ use App\Http\Resources\DashboardSummaryResource;
 use App\Http\Resources\StorageAlertResource;
 use App\Services\DashboardService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Http\Response;
 
 class DashboardController
 {
@@ -34,17 +34,17 @@ class DashboardController
     /**
      * Get all active storage alerts
      */
-    public function alerts(Request $request): AnonymousResourceCollection
+    public function alerts(Request $request): JsonResponse
     {
         $alerts = $this->service->getAlerts();
 
-        return StorageAlertResource::collection($alerts);
+        return response()->json(['data' => $alerts]);
     }
 
     /**
      * Get health check status
      */
-    public function health(): Response
+    public function health(): JsonResponse
     {
         $health = $this->service->getHealthStatus();
 
@@ -54,7 +54,7 @@ class DashboardController
     /**
      * Get near-deadline warnings
      */
-    public function nearDeadlineWarnings(Request $request): Response
+    public function nearDeadlineWarnings(Request $request): JsonResponse
     {
         $days = $request->input('days', 7);
         $warnings = $this->service->getNearDeadlineWarnings($days);
@@ -69,7 +69,7 @@ class DashboardController
     /**
      * Get expired warnings (critical)
      */
-    public function expiredWarnings(): Response
+    public function expiredWarnings(): JsonResponse
     {
         $warnings = $this->service->getExpiredWarnings();
 
@@ -82,7 +82,7 @@ class DashboardController
     /**
      * Get monthly trends
      */
-    public function monthlyTrends(Request $request): Response
+    public function monthlyTrends(Request $request): JsonResponse
     {
         $months = $request->input('months', 12);
         $trends = $this->service->getMonthlyTrends($months);
@@ -96,7 +96,7 @@ class DashboardController
     /**
      * Get category breakdown
      */
-    public function categoryBreakdown(): Response
+    public function categoryBreakdown(): JsonResponse
     {
         $breakdown = $this->service->getCategoryBreakdown();
 

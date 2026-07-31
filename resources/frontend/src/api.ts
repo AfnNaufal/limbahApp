@@ -50,6 +50,37 @@ export async function postApi<TResponse, TPayload>(
   return parseResponse<TResponse>(response);
 }
 
+export async function putApi<TResponse, TPayload>(
+  url: string,
+  payload: TPayload,
+): Promise<TResponse> {
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse<TResponse>(response);
+}
+
+export async function deleteApi<TResponse = void>(url: string): Promise<TResponse> {
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (response.status === 204) {
+    return undefined as TResponse;
+  }
+
+  return parseResponse<TResponse>(response);
+}
+
 /* =========================================================
    DASHBOARD
    ========================================================= */
@@ -118,6 +149,8 @@ export type PaginatedResponse<T> = {
 
 export async function getB3Transactions(
   params?: {
+    page?: number;
+    per_page?: number;
     type?: 'IN' | 'OUT';
     status?: string;
     from?: string;
@@ -126,21 +159,12 @@ export async function getB3Transactions(
 ): Promise<PaginatedResponse<B3Transaction>> {
   const searchParams = new URLSearchParams();
 
-  if (params?.type) {
-    searchParams.set('type', params.type);
-  }
-
-  if (params?.status) {
-    searchParams.set('status', params.status);
-  }
-
-  if (params?.from) {
-    searchParams.set('from', params.from);
-  }
-
-  if (params?.to) {
-    searchParams.set('to', params.to);
-  }
+  if (params?.page) searchParams.set('page', String(params.page));
+  if (params?.per_page) searchParams.set('per_page', String(params.per_page));
+  if (params?.type) searchParams.set('type', params.type);
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.from) searchParams.set('date_from', params.from);
+  if (params?.to) searchParams.set('date_to', params.to);
 
   const query = searchParams.toString();
 
@@ -190,6 +214,8 @@ export type DomesticTransaction = {
 
 export async function getDomesticTransactions(
   params?: {
+    page?: number;
+    per_page?: number;
     movement_type?: 'IN' | 'OUT';
     session?: 'MORNING' | 'AFTERNOON';
     status?: string;
@@ -199,29 +225,45 @@ export async function getDomesticTransactions(
 ): Promise<PaginatedResponse<DomesticTransaction>> {
   const searchParams = new URLSearchParams();
 
-  if (params?.movement_type) {
-    searchParams.set('movement_type', params.movement_type);
-  }
-
-  if (params?.session) {
-    searchParams.set('session', params.session);
-  }
-
-  if (params?.status) {
-    searchParams.set('status', params.status);
-  }
-
-  if (params?.from) {
-    searchParams.set('from', params.from);
-  }
-
-  if (params?.to) {
-    searchParams.set('to', params.to);
-  }
+  if (params?.page) searchParams.set('page', String(params.page));
+  if (params?.per_page) searchParams.set('per_page', String(params.per_page));
+  if (params?.movement_type) searchParams.set('movement_type', params.movement_type);
+  if (params?.session) searchParams.set('session', params.session);
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.from) searchParams.set('date_from', params.from);
+  if (params?.to) searchParams.set('date_to', params.to);
 
   const query = searchParams.toString();
 
   return getApi<PaginatedResponse<DomesticTransaction>>(
     `/api/domestic-transactions${query ? `?${query}` : ''}`,
   );
+}
+
+export async function updateB3Transaction(
+  id: number | string,
+  data: Record<string, any>,
+): Promise<{ data: B3Transaction }> {
+  return putApi<{ data: B3Transaction }, Record<string, any>>(
+    `/api/b3-transactions/${id}`,
+    data,
+  );
+}
+
+export async function deleteB3Transaction(id: number | string): Promise<void> {
+  return deleteApi(`/api/b3-transactions/${id}`);
+}
+
+export async function updateDomesticTransaction(
+  id: number | string,
+  data: Record<string, any>,
+): Promise<{ data: DomesticTransaction }> {
+  return putApi<{ data: DomesticTransaction }, Record<string, any>>(
+    `/api/domestic-transactions/${id}`,
+    data,
+  );
+}
+
+export async function deleteDomesticTransaction(id: number | string): Promise<void> {
+  return deleteApi(`/api/domestic-transactions/${id}`);
 }

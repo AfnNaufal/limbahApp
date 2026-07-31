@@ -7,6 +7,9 @@ use App\Models\DomesticTransaction;
 use App\Models\WasteCategory;
 use Tests\TestCase;
 
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+
 class ApiPhase1Test extends TestCase
 {
     /**
@@ -72,6 +75,7 @@ class ApiPhase1Test extends TestCase
             'date' => today()->toDateString(),
             'source' => 'Test Source',
             'weight_kg' => 100.50,
+            'storage_deadline_at' => today()->addDays(90)->toDateString(),
             'status' => 'PENDING',
         ];
 
@@ -81,6 +85,35 @@ class ApiPhase1Test extends TestCase
         $response->assertJsonStructure([
             'data' => ['id', 'transaction_type', 'waste_code', 'date', 'weight_kg']
         ]);
+    }
+
+    /**
+     * Test create B3 transaction with scale photo
+     */
+    public function test_create_b3_transaction_with_scale_photo()
+    {
+        Storage::fake('public');
+        $category = WasteCategory::first();
+        $file = UploadedFile::fake()->image('scale.jpg');
+
+        $payload = [
+            'transaction_type' => 'IN',
+            'waste_category_id' => $category->id,
+            'waste_code' => $category->code,
+            'waste_name' => $category->name,
+            'date' => today()->toDateString(),
+            'source' => 'Test Source Photo',
+            'weight_kg' => 120.00,
+            'storage_deadline_at' => today()->addDays(90)->toDateString(),
+            'status' => 'PENDING',
+            'scale_photo' => $file,
+        ];
+
+        $response = $this->postJson('/api/b3-transactions', $payload);
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('data.weight_kg', 120);
+        $this->assertNotNull($response->json('data.scale_photo_url'));
     }
 
     /**
@@ -116,7 +149,7 @@ class ApiPhase1Test extends TestCase
      */
     public function test_delete_b3_transaction()
     {
-        $transaction = B3Transaction::factory()->create();
+        $transaction = B3Transaction::first();
         $transactionId = $transaction->id;
 
         $response = $this->deleteJson("/api/b3-transactions/{$transactionId}");
@@ -145,8 +178,10 @@ class ApiPhase1Test extends TestCase
     public function test_create_domestic_transaction()
     {
         $payload = [
-            'date' => today()->toDateString(),
+            'date' => now()->subDays(rand(10, 500))->toDateString(),
+            'movement_type' => 'IN',
             'session' => 'MORNING',
+            'domestic_residue_kg' => 125.0,
             'organic_weight_kg' => 50.0,
             'inorganic_weight_kg' => 75.0,
             'status' => 'SUBMITTED',
@@ -156,7 +191,7 @@ class ApiPhase1Test extends TestCase
         $response = $this->postJson('/api/domestic-transactions', $payload);
 
         $response->assertStatus(201);
-        $response->assertJsonPath('data.total_weight_kg', 125.0);
+        $response->assertJsonPath('data.total_weight_kg', 125);
     }
 
     /**

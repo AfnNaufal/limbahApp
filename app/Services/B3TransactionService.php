@@ -7,6 +7,9 @@ use App\Models\StorageAlert;
 use Carbon\Carbon;
 use Illuminate\Pagination\Paginator;
 
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+
 class B3TransactionService
 {
     /**
@@ -14,6 +17,11 @@ class B3TransactionService
      */
     public function createTransaction(array $data): B3Transaction
     {
+        if (isset($data['scale_photo']) && $data['scale_photo'] instanceof UploadedFile) {
+            $data['scale_photo_path'] = $data['scale_photo']->store('scale_photos', 'public');
+            unset($data['scale_photo']);
+        }
+
         return B3Transaction::create($data);
     }
 
@@ -22,6 +30,14 @@ class B3TransactionService
      */
     public function updateTransaction(B3Transaction $transaction, array $data): B3Transaction
     {
+        if (isset($data['scale_photo']) && $data['scale_photo'] instanceof UploadedFile) {
+            if ($transaction->scale_photo_path) {
+                Storage::disk('public')->delete($transaction->scale_photo_path);
+            }
+            $data['scale_photo_path'] = $data['scale_photo']->store('scale_photos', 'public');
+            unset($data['scale_photo']);
+        }
+
         $transaction->update($data);
         return $transaction;
     }

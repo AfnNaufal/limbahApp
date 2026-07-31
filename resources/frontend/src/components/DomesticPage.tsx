@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
 import { useApp } from '../context'
-import { getDomesticTransactions } from '../api'
+import { getDomesticTransactions, updateDomesticTransaction, deleteDomesticTransaction } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import {
   DOMESTIC_TRANSACTIONS, MONTHLY_DOM_MORNING, MONTHLY_DOM_AFTERNOON,
@@ -40,24 +40,41 @@ export default function DomesticPage() {
   const [page, setPage] = useState(1)
   const [apiData, setApiData] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editingTx, setEditingTx] = useState<any | null>(null)
+  const [deletingTx, setDeletingTx] = useState<any | null>(null)
+  const [editForm, setEditForm] = useState({
+    domestic_residue_kg: '',
+    status: 'SUBMITTED',
+    pic_name: '',
+    notes: '',
+  })
+  const [saving, setSaving] = useState(false)
+
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const PAGE_SIZE = 10
 
-  useEffect(() => {
-    getDomesticTransactions(page, PAGE_SIZE, filterSession)
+  const fetchData = () => {
+    setLoading(true)
+    getDomesticTransactions({
+      page,
+      per_page: PAGE_SIZE,
+      session: filterSession === 'all' ? undefined : (filterSession.toUpperCase() as 'MORNING' | 'AFTERNOON'),
+      status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
+    })
       .then((res) => {
         if (res?.data) {
           const mapped = res.data.map((item: any) => ({
             id: `DOM-${item.id}`,
+            rawId: item.id,
             date: item.date,
             session: (item.session || 'MORNING').toLowerCase(),
-            organicKg: item.organic_weight_kg,
-            inorganicKg: item.inorganic_weight_kg,
-            totalKg: item.total_weight_kg,
+            organicKg: item.organic_weight_kg ?? 0,
+            inorganicKg: item.inorganic_weight_kg ?? 0,
+            totalKg: item.total_weight_kg ?? (Number(item.organic_weight_kg ?? 0) + Number(item.inorganic_weight_kg ?? 0)),
             picName: item.pic_name || 'Petugas',
-            status: item.status === 'VERIFIED' ? 'disposed' : 'pending',
-            notes: item.notes || '-',
+            status: item.status || 'SUBMITTED',
+            notes: item.notes || '',
           }))
           setApiData(mapped)
         }
@@ -67,7 +84,54 @@ export default function DomesticPage() {
         console.error('Failed to load domestic transactions:', err)
         setLoading(false)
       })
-  }, [page, filterSession])
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [page, filterSession, filterStatus])
+
+  const handleOpenEdit = (tx: any) => {
+    setEditingTx(tx)
+    setEditForm({
+      domestic_residue_kg: String(tx.totalKg || tx.organicKg || 0),
+      status: String(tx.status).toUpperCase(),
+      pic_name: tx.picName === 'Petugas' ? '' : tx.picName,
+      notes: tx.notes === '-' ? '' : tx.notes,
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingTx) return
+    try {
+      setSaving(true)
+      await updateDomesticTransaction(editingTx.rawId, {
+        domestic_residue_kg: Number(editForm.domestic_residue_kg),
+        status: editForm.status,
+        pic_name: editForm.pic_name || 'Petugas',
+        notes: editForm.notes || null,
+      })
+      setEditingTx(null)
+      fetchData()
+    } catch (err: any) {
+      alert(err.message || 'Gagal menyimpan perubahan')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletingTx) return
+    try {
+      setSaving(true)
+      await deleteDomesticTransaction(deletingTx.rawId)
+      setDeletingTx(null)
+      fetchData()
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus transaksi')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const transactionsList = apiData ?? DOMESTIC_TRANSACTIONS
   const isGlass = theme === 'frosted' || theme === 'liquid'
@@ -242,7 +306,7 @@ export default function DomesticPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: tokens.fontFamily }}>
                 <thead>
                   <tr style={{ borderBottom: `2px solid ${tokens.border}` }}>
-                    {['ID', t('date'), t('session'), 'Organik (kg)', 'Anorganik (kg)', 'Total (kg)', t('status'), 'PIC'].map((h) => (
+                    {['ID', t('date'), t('session'), 'Organik (kg)', 'Anorganik (kg)', 'Total (kg)', t('status'), 'PIC', 'Aksi'].map((h) => (
                       <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: tokens.textMuted, fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
                     ))}
                   </tr>
@@ -273,6 +337,24 @@ export default function DomesticPage() {
                         }}>{t(tx.status) || tx.status}</span>
                       </td>
                       <td style={{ padding: '8px 10px', color: tokens.textMuted }}>{tx.picName}</td>
+                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(tx)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, marginRight: 8, color: tokens.primary, fontWeight: 600 }}
+                          title="Edit Transaksi"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingTx(tx)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.danger, fontWeight: 600 }}
+                          title="Hapus Transaksi"
+                        >
+                          🗑️ Hapus
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -323,6 +405,136 @@ export default function DomesticPage() {
           ))
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingTx && (
+        <div
+          onClick={() => setEditingTx(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 110,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 460, background: tokens.card, border: `1px solid ${tokens.cardBorder}`,
+              borderRadius: tokens.radius, padding: 20, boxShadow: tokens.shadow, display: 'flex', flexDirection: 'column', gap: 14,
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, color: tokens.text }}>Edit Transaksi {editingTx.id}</div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Total Sampah / Residu (kg)</label>
+                <input
+                  type="number" step="0.1" min="0"
+                  value={editForm.domestic_residue_kg}
+                  onChange={(e) => setEditForm({ ...editForm, domestic_residue_kg: e.target.value })}
+                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Status Transaksi</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
+                >
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="SUBMITTED">SUBMITTED</option>
+                  <option value="VERIFIED">VERIFIED</option>
+                  <option value="REJECTED">REJECTED</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Nama Petugas (PIC)</label>
+                <input
+                  type="text"
+                  value={editForm.pic_name}
+                  onChange={(e) => setEditForm({ ...editForm, pic_name: e.target.value })}
+                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Catatan</label>
+                <textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  rows={2}
+                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text, resize: 'vertical' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setEditingTx(null)}
+                style={{ padding: '7px 14px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: 'pointer' }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={saving}
+                style={{ padding: '7px 14px', background: tokens.primary, border: 'none', borderRadius: tokens.radius, fontSize: 12, color: tokens.textInverse, fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}
+              >
+                {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingTx && (
+        <div
+          onClick={() => setDeletingTx(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 110,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 400, background: tokens.card, border: `1px solid ${tokens.cardBorder}`,
+              borderRadius: tokens.radius, padding: 20, boxShadow: tokens.shadow, display: 'flex', flexDirection: 'column', gap: 14,
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, color: tokens.danger }}>Konfirmasi Hapus Transaksi Domestik</div>
+            <div style={{ fontSize: 13, color: tokens.text }}>
+              Apakah Anda yakin ingin menghapus data <strong>{deletingTx.id}</strong> (Total: {deletingTx.totalKg} kg)?
+            </div>
+            <div style={{ fontSize: 11, color: tokens.textMuted }}>
+              Data ini akan diarsipkan (soft delete) dan tetap tersimpan di database untuk audit.
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setDeletingTx(null)}
+                style={{ padding: '7px 14px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: 'pointer' }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={saving}
+                style={{ padding: '7px 14px', background: tokens.danger, border: 'none', borderRadius: tokens.radius, fontSize: 12, color: '#fff', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}
+              >
+                {saving ? 'Menghapus...' : 'Ya, Hapus Transaksi'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

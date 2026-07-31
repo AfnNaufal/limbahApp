@@ -56,24 +56,20 @@ class DomesticTransactionService
      */
     public function calculateDailyStats(Carbon $date): array
     {
-        $transactions = DomesticTransaction::whereDate('date', $date)->get();
+        $query = DomesticTransaction::whereDate('date', $date);
 
-        $organicTotal = 0;
-        $inorganicTotal = 0;
-
-        foreach ($transactions as $transaction) {
-            $organicTotal += $transaction->organic_weight_kg;
-            $inorganicTotal += $transaction->inorganic_weight_kg;
-        }
+        $organicTotal = (float) $query->clone()->sum('organic_weight_kg');
+        $inorganicTotal = (float) $query->clone()->sum('inorganic_weight_kg');
+        $count = $query->clone()->count();
 
         return [
             'date' => $date->format('Y-m-d'),
-            'organic_kg' => (float) $organicTotal,
-            'inorganic_kg' => (float) $inorganicTotal,
+            'organic_kg' => $organicTotal,
+            'inorganic_kg' => $inorganicTotal,
             'total_kg' => (float) ($organicTotal + $inorganicTotal),
-            'transaction_count' => $transactions->count(),
-            'morning_count' => $transactions->where('session', 'MORNING')->count(),
-            'afternoon_count' => $transactions->where('session', 'AFTERNOON')->count(),
+            'transaction_count' => $count,
+            'morning_count' => $query->clone()->where('session', 'MORNING')->count(),
+            'afternoon_count' => $query->clone()->where('session', 'AFTERNOON')->count(),
         ];
     }
 
@@ -82,28 +78,23 @@ class DomesticTransactionService
      */
     public function getStatsByDateRange(Carbon $from, Carbon $to): array
     {
-        $transactions = DomesticTransaction::byDateRange($from, $to)->get();
+        $query = DomesticTransaction::byDateRange($from, $to);
 
-        $organicTotal = 0;
-        $inorganicTotal = 0;
-
-        foreach ($transactions as $transaction) {
-            $organicTotal += $transaction->organic_weight_kg;
-            $inorganicTotal += $transaction->inorganic_weight_kg;
-        }
+        $organicTotal = (float) $query->clone()->sum('organic_weight_kg');
+        $inorganicTotal = (float) $query->clone()->sum('inorganic_weight_kg');
+        $count = $query->clone()->count();
+        $totalWeight = $organicTotal + $inorganicTotal;
 
         return [
             'date_from' => $from->format('Y-m-d'),
             'date_to' => $to->format('Y-m-d'),
-            'organic_kg' => (float) $organicTotal,
-            'inorganic_kg' => (float) $inorganicTotal,
-            'total_kg' => (float) ($organicTotal + $inorganicTotal),
-            'transaction_count' => $transactions->count(),
-            'morning_count' => $transactions->where('session', 'MORNING')->count(),
-            'afternoon_count' => $transactions->where('session', 'AFTERNOON')->count(),
-            'avg_daily_weight' => $transactions->count() > 0 
-                ? round(($organicTotal + $inorganicTotal) / $transactions->count(), 2)
-                : 0,
+            'organic_kg' => $organicTotal,
+            'inorganic_kg' => $inorganicTotal,
+            'total_kg' => (float) $totalWeight,
+            'transaction_count' => $count,
+            'morning_count' => $query->clone()->where('session', 'MORNING')->count(),
+            'afternoon_count' => $query->clone()->where('session', 'AFTERNOON')->count(),
+            'avg_daily_weight' => $count > 0 ? round($totalWeight / $count, 2) : 0,
         ];
     }
 
@@ -112,24 +103,18 @@ class DomesticTransactionService
      */
     public function getStatistics(): array
     {
-        $allTransactions = DomesticTransaction::all();
-        $organicTotal = 0;
-        $inorganicTotal = 0;
-
-        foreach ($allTransactions as $transaction) {
-            $organicTotal += $transaction->organic_weight_kg;
-            $inorganicTotal += $transaction->inorganic_weight_kg;
-        }
+        $organicTotal = (float) DomesticTransaction::sum('organic_weight_kg');
+        $inorganicTotal = (float) DomesticTransaction::sum('inorganic_weight_kg');
 
         return [
-            'total_count' => $allTransactions->count(),
-            'morning_count' => $allTransactions->where('session', 'MORNING')->count(),
-            'afternoon_count' => $allTransactions->where('session', 'AFTERNOON')->count(),
-            'organic_total_kg' => (float) $organicTotal,
-            'inorganic_total_kg' => (float) $inorganicTotal,
+            'total_count' => DomesticTransaction::count(),
+            'morning_count' => DomesticTransaction::where('session', 'MORNING')->count(),
+            'afternoon_count' => DomesticTransaction::where('session', 'AFTERNOON')->count(),
+            'organic_total_kg' => $organicTotal,
+            'inorganic_total_kg' => $inorganicTotal,
             'total_weight_kg' => (float) ($organicTotal + $inorganicTotal),
-            'verified_count' => $allTransactions->where('status', 'VERIFIED')->count(),
-            'draft_count' => $allTransactions->where('status', 'DRAFT')->count(),
+            'verified_count' => DomesticTransaction::where('status', 'VERIFIED')->count(),
+            'draft_count' => DomesticTransaction::where('status', 'DRAFT')->count(),
         ];
     }
 

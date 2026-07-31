@@ -41,9 +41,13 @@ class B3TransactionController
 
         // Filter by date range
         if ($dateFrom && $dateTo) {
-            $from = Carbon::parse($dateFrom)->startOfDay();
-            $to = Carbon::parse($dateTo)->endOfDay();
-            $query->whereBetween('date', [$from, $to]);
+            try {
+                $from = Carbon::parse($dateFrom)->startOfDay();
+                $to = Carbon::parse($dateTo)->endOfDay();
+                $query->whereBetween('date', [$from, $to]);
+            } catch (\Throwable $e) {
+                // Ignore malformed date format gracefully
+            }
         }
 
         $transactions = $query->orderBy('date', 'desc')->paginate($perPage);

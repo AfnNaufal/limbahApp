@@ -126,14 +126,26 @@ async function getWasteCategories(): Promise<Category[]> {
 
 async function createB3Transaction(
     payload: B3TransactionPayload,
+    scalePhoto: File | null,
 ): Promise<void> {
+    const formData = new FormData();
+
+    Object.entries(payload).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+            formData.append(key, String(value));
+        }
+    });
+
+    if (scalePhoto) {
+        formData.append('scale_photo', scalePhoto);
+    }
+
     const response = await fetch('/api/b3-transactions', {
         method: 'POST',
         headers: {
             Accept: 'application/json',
-            'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: formData,
     });
 
     if (!response.ok) {
@@ -293,7 +305,7 @@ export default function B3TransactionForm({
         try {
             setSubmitting(true);
 
-            await createB3Transaction(payload);
+            await createB3Transaction(payload, form.scale_photo);
 
             setMessage({
                 type: 'success',
@@ -517,7 +529,7 @@ export default function B3TransactionForm({
 
                         <Field
                             label="Foto timbangan"
-                            hint="File hanya dipilih di frontend. Backend saat ini belum menyimpan foto."
+                            hint="Upload foto bukti penimbangan fisik (Format: JPG, PNG, WEBP, Maks 5MB)."
                         >
                             <input
                                 style={inputStyle}
