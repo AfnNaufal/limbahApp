@@ -189,11 +189,63 @@ export default function B3Page() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
 
-  const trendData = trendPeriod === 'monthly'
-    ? MONTHLY_B3_IN.map((d, i) => ({ name: d.month, b3in: d.value, b3out: MONTHLY_B3_OUT[i]?.value ?? 0 }))
-    : trendPeriod === 'yearly'
-      ? YEARLY_DATA
-      : MONTHLY_B3_IN.slice(0, 4).map((d, i) => ({ name: `W${i + 1}`, b3in: d.value / 4, b3out: (MONTHLY_B3_OUT[i]?.value ?? 0) / 4 }))
+  const trendData = useMemo(() => {
+    if (apiData && apiData.length > 0) {
+      const monthMap: Record<string, { b3in: number; b3out: number }> = {}
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+      monthNames.forEach((m) => { monthMap[m] = { b3in: 0, b3out: 0 } })
+
+      filtered.forEach((tx) => {
+        if (!tx.date) return
+        const monthIdx = new Date(tx.date).getMonth()
+        const monthName = monthNames[monthIdx] || 'Jan'
+        const weight = Number(tx.amountKg ?? tx.weightKg ?? 0)
+        if (tx.category === 'b3in') {
+          monthMap[monthName].b3in += weight
+        } else {
+          monthMap[monthName].b3out += weight
+        }
+      })
+
+      return monthNames.map((m) => ({
+        name: m,
+        b3in: Number(monthMap[m].b3in.toFixed(1)),
+        b3out: Number(monthMap[m].b3out.toFixed(1)),
+      }))
+    }
+
+    return trendPeriod === 'monthly'
+      ? MONTHLY_B3_IN.map((d, i) => ({ name: d.month, b3in: d.value, b3out: MONTHLY_B3_OUT[i]?.value ?? 0 }))
+      : trendPeriod === 'yearly'
+        ? YEARLY_DATA
+        : MONTHLY_B3_IN.slice(0, 4).map((d, i) => ({ name: `W${i + 1}`, b3in: d.value / 4, b3out: (MONTHLY_B3_OUT[i]?.value ?? 0) / 4 }))
+  }, [apiData, filtered, trendPeriod])
+
+  const dynamicPieIn = useMemo(() => {
+    if (apiData && apiData.length > 0) {
+      const catMap: Record<string, number> = {}
+      filtered.filter((tx) => tx.category === 'b3in').forEach((tx) => {
+        const name = tx.type || 'Limbah B3'
+        catMap[name] = (catMap[name] || 0) + Number(tx.amountKg ?? tx.weightKg ?? 0)
+      })
+      const entries = Object.entries(catMap).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
+      if (entries.length > 0) return entries
+    }
+    return PIE_B3_IN
+  }, [apiData, filtered])
+
+  const dynamicPieOut = useMemo(() => {
+    if (apiData && apiData.length > 0) {
+      const destMap: Record<string, number> = {}
+      filtered.filter((tx) => tx.category === 'b3out').forEach((tx) => {
+        const name = tx.destination || 'Pihak Ke-3'
+        destMap[name] = (destMap[name] || 0) + Number(tx.amountKg ?? tx.weightKg ?? 0)
+      })
+      const entries = Object.entries(destMap).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
+      if (entries.length > 0) return entries
+    }
+    return PIE_B3_OUT
+  }, [apiData, filtered])
 
   const tooltipStyle = {
     contentStyle: {
@@ -216,9 +268,6 @@ export default function B3Page() {
     minWidth: 0,
   }
 
-  const exceeded = STORAGE_ALERTS.filter((a) => a.urgency === 'exceeded')
-  const warning = STORAGE_ALERTS.filter((a) => a.urgency === 'warning')
-
   const chartColumns = isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 220px 1fr'
 
   return (
@@ -232,59 +281,28 @@ export default function B3Page() {
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
-            {t('storageAlert')}
-            <span style={{ fontSize: 11, background: `${tokens.danger}22`, color: tokens.danger, padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
-              {exceeded.length} terlampaui
-            </span>
-            <span style={{ fontSize: 11, background: `${tokens.warning}22`, color: tokens.warning, padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
-              {warning.length} mendekati
-            </span>
+            {t('storageAlertTitle')} ({STORAGE_ALERTS.length})
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
-            {STORAGE_ALERTS.map((alert) => {
-              const urgColor = alert.urgency === 'exceeded' ? tokens.danger : tokens.warning
-              const pct = alert.currentStorageKg && alert.storageCapacityKg
-                ? Math.min(100, Math.round((alert.currentStorageKg / alert.storageCapacityKg) * 100))
-                : 0
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+            {STORAGE_ALERTS.map((a) => {
+              const isExceeded = a.urgency === 'exceeded'
+              const color = isExceeded ? tokens.danger : tokens.warning
               return (
-                <div key={alert.id} style={{
-                  ...cardStyle,
-                  borderLeft: `3px solid ${urgColor}`,
-                  padding: '12px 14px',
+                <div key={a.id} style={{
+                  background: `${color}10`, border: `1px solid ${color}40`,
+                  borderRadius: tokens.radius, padding: '10px 14px', fontSize: 12,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: tokens.text }}>{alert.wasteCode}</div>
-                      <div style={{ fontSize: 11, color: tokens.textMuted }}>{alert.type}</div>
-                    </div>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
-                      background: `${urgColor}22`, color: urgColor,
-                    }}>
-                      {alert.urgency === 'exceeded' ? t('exceededLimit') : t('approachingLimit')}
-                    </span>
+                  <div>
+                    <div style={{ fontWeight: 600, color: tokens.text }}>{a.wasteName} ({a.wasteCode})</div>
+                    <div style={{ color: tokens.textMuted, fontSize: 11 }}>{a.weightKg} kg · Tersimpan {a.daysInStorage} hari</div>
                   </div>
-                  {alert.storageCapacityKg && (
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: 11, color: tokens.textMuted }}>{t('currentStorage')}</span>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: tokens.text }}>{pct}%</span>
-                      </div>
-                      <div style={{ height: 6, background: `${urgColor}20`, borderRadius: 3 }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: urgColor, borderRadius: 3, transition: 'width 0.5s' }} />
-                      </div>
-                      <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>
-                        {alert.currentStorageKg?.toFixed(1)} / {alert.storageCapacityKg} kg
-                        {alert.storageDeadlineDays !== undefined && (
-                          <span style={{ marginLeft: 8, color: urgColor, fontWeight: 600 }}>
-                            {alert.storageDeadlineDays < 0
-                              ? `${Math.abs(alert.storageDeadlineDays)} hari terlampau`
-                              : `${alert.storageDeadlineDays} hari tersisa`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 3,
+                    background: color, color: '#fff', whiteSpace: 'nowrap',
+                  }}>
+                    {isExceeded ? `${a.daysInStorage - a.maxDays} HR LEWAT` : `${a.maxDays - a.daysInStorage} HR LAGI`}
+                  </span>
                 </div>
               )
             })}
@@ -292,38 +310,38 @@ export default function B3Page() {
         </div>
       )}
 
-      {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: chartColumns, gap: 14, marginBottom: 20 }}>
-        {/* Bar: B3 In vs Out */}
+      {/* Grid Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: chartColumns, gap: 16, marginBottom: 20 }}>
+        {/* Main Bar Chart */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Perbandingan B3 Masuk vs Keluar (Bulanan)
+          <div style={{ fontSize: 13, fontWeight: 700, color: tokens.text, marginBottom: 12 }}>
+            {t('b3MonthlyTrend')}
           </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={MONTHLY_B3_IN.map((d, i) => ({ name: d.month, b3in: d.value, b3out: MONTHLY_B3_OUT[i]?.value ?? 0 }))} barSize={10}>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={trendData} barGap={4}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} />
-              <Bar dataKey="b3in" fill={tokens.chartB3In} radius={[2, 2, 0, 0]} name="B3 Masuk" />
-              <Bar dataKey="b3out" fill={tokens.chartB3Out} radius={[2, 2, 0, 0]} name="B3 Keluar" />
+              <Tooltip {...tooltipStyle} formatter={(val) => [`${Number(val).toLocaleString('id-ID')} kg`, '']} />
+              <Bar dataKey="b3in" fill={tokens.chartB3In} radius={[3, 3, 0, 0]} name="B3 Masuk (kg)" />
+              <Bar dataKey="b3out" fill={tokens.chartB3Out} radius={[3, 3, 0, 0]} name="B3 Keluar (kg)" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Pie charts */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Pie Charts */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ ...cardStyle, flex: 1 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Sumber B3 Masuk
+              Komposisi B3 Masuk
             </div>
             <ResponsiveContainer width="100%" height={80}>
               <PieChart>
-                <Pie data={PIE_B3_IN} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
-                  {PIE_B3_IN.map((_, i) => (
+                <Pie data={dynamicPieIn} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
+                  {dynamicPieIn.map((_, i) => (
                     <Cell key={i} fill={[tokens.chartB3In, tokens.chartB3Out, tokens.accent, tokens.warning, tokens.success, '#a78bfa'][i % 6]!} />
                   ))}
                 </Pie>
-                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
+                <Tooltip {...tooltipStyle} formatter={(val, name) => [`${Number(val).toLocaleString('id-ID')} kg`, name]} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -333,12 +351,12 @@ export default function B3Page() {
             </div>
             <ResponsiveContainer width="100%" height={80}>
               <PieChart>
-                <Pie data={PIE_B3_OUT} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
-                  {PIE_B3_OUT.map((_, i) => (
+                <Pie data={dynamicPieOut} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
+                  {dynamicPieOut.map((_, i) => (
                     <Cell key={i} fill={[tokens.chartB3Out, tokens.accent, tokens.chartDomMorning, tokens.warning, '#a78bfa'][i % 5]!} />
                   ))}
                 </Pie>
-                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
+                <Tooltip {...tooltipStyle} formatter={(val, name) => [`${Number(val).toLocaleString('id-ID')} kg`, name]} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -365,7 +383,7 @@ export default function B3Page() {
             <LineChart data={trendData}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} />
+              <Tooltip {...tooltipStyle} formatter={(val) => [`${Number(val).toLocaleString('id-ID')} kg`, '']} />
               <Line type="monotone" dataKey="b3in" stroke={tokens.chartB3In} strokeWidth={2} dot={false} name="B3 Masuk" />
               <Line type="monotone" dataKey="b3out" stroke={tokens.chartB3Out} strokeWidth={2} dot={false} name="B3 Keluar" />
             </LineChart>

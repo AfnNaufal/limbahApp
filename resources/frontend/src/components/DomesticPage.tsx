@@ -175,11 +175,37 @@ export default function DomesticPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
 
-  const trendData = trendPeriod === 'monthly'
-    ? MONTHLY_DOM_MORNING.map((d, i) => ({ name: d.month, morning: d.value, afternoon: MONTHLY_DOM_AFTERNOON[i]?.value ?? 0 }))
-    : trendPeriod === 'yearly'
-      ? YEARLY_DATA
-      : MONTHLY_DOM_MORNING.slice(0, 4).map((d, i) => ({ name: `W${i + 1}`, morning: d.value / 4, afternoon: (MONTHLY_DOM_AFTERNOON[i]?.value ?? 0) / 4 }))
+  const trendData = useMemo(() => {
+    if (apiData && apiData.length > 0) {
+      const monthMap: Record<string, { morning: number; afternoon: number }> = {}
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+      monthNames.forEach((m) => { monthMap[m] = { morning: 0, afternoon: 0 } })
+
+      filtered.forEach((tx) => {
+        if (!tx.date) return
+        const monthIdx = new Date(tx.date).getMonth()
+        const monthName = monthNames[monthIdx] || 'Jan'
+        const weight = Number(tx.totalKg ?? (Number(tx.organicKg ?? 0) + Number(tx.inorganicKg ?? 0)))
+        if (tx.session === 'morning' || tx.session === 'MORNING') {
+          monthMap[monthName].morning += weight
+        } else {
+          monthMap[monthName].afternoon += weight
+        }
+      })
+
+      return monthNames.map((m) => ({
+        name: m,
+        morning: Number(monthMap[m].morning.toFixed(1)),
+        afternoon: Number(monthMap[m].afternoon.toFixed(1)),
+      }))
+    }
+
+    return trendPeriod === 'monthly'
+      ? MONTHLY_DOM_MORNING.map((d, i) => ({ name: d.month, morning: d.value, afternoon: MONTHLY_DOM_AFTERNOON[i]?.value ?? 0 }))
+      : trendPeriod === 'yearly'
+        ? YEARLY_DATA
+        : MONTHLY_DOM_MORNING.slice(0, 4).map((d, i) => ({ name: `W${i + 1}`, morning: d.value / 4, afternoon: (MONTHLY_DOM_AFTERNOON[i]?.value ?? 0) / 4 }))
+  }, [apiData, filtered, trendPeriod])
 
   const tooltipStyle = {
     contentStyle: {
@@ -207,26 +233,26 @@ export default function DomesticPage() {
   return (
     <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
 
-      {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: chartColumns, gap: 14, marginBottom: 20 }}>
-        {/* Bar */}
+      {/* Grid Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: chartColumns, gap: 16, marginBottom: 20 }}>
+        {/* Main Bar Chart */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: tokens.textMuted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Volume Pagi vs Sore (Bulanan)
+          <div style={{ fontSize: 13, fontWeight: 700, color: tokens.text, marginBottom: 12 }}>
+            {t('domesticMonthlyTrend')}
           </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={MONTHLY_DOM_MORNING.map((d, i) => ({ name: d.month, morning: d.value, afternoon: MONTHLY_DOM_AFTERNOON[i]?.value ?? 0 }))} barSize={10}>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={trendData} barGap={4}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} />
-              <Bar dataKey="morning" fill={tokens.chartDomMorning} radius={[2, 2, 0, 0]} name="Pagi" />
-              <Bar dataKey="afternoon" fill={tokens.chartDomAfternoon} radius={[2, 2, 0, 0]} name="Sore" />
+              <Tooltip {...tooltipStyle} formatter={(val) => [`${Number(val).toLocaleString('id-ID')} kg`, '']} />
+              <Bar dataKey="morning" fill={tokens.chartDomMorning} radius={[3, 3, 0, 0]} name="Sesi Pagi (kg)" />
+              <Bar dataKey="afternoon" fill={tokens.chartDomAfternoon} radius={[3, 3, 0, 0]} name="Sesi Sore (kg)" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Pie charts */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ ...cardStyle, flex: 1 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Komposisi Pagi
@@ -237,7 +263,7 @@ export default function DomesticPage() {
                   <Cell fill={tokens.success} />
                   <Cell fill={tokens.accent} />
                 </Pie>
-                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
+                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toLocaleString('id-ID')} kg`, '']} />
               </PieChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 4 }}>
@@ -255,7 +281,7 @@ export default function DomesticPage() {
                   <Cell fill={tokens.chartDomAfternoon} />
                   <Cell fill={tokens.warning} />
                 </Pie>
-                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
+                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toLocaleString('id-ID')} kg`, '']} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -282,7 +308,7 @@ export default function DomesticPage() {
             <LineChart data={trendData}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} />
+              <Tooltip {...tooltipStyle} formatter={(val) => [`${Number(val).toLocaleString('id-ID')} kg`, '']} />
               <Line type="monotone" dataKey="morning" stroke={tokens.chartDomMorning} strokeWidth={2} dot={false} name="Pagi" />
               <Line type="monotone" dataKey="afternoon" stroke={tokens.chartDomAfternoon} strokeWidth={2} dot={false} name="Sore" />
             </LineChart>

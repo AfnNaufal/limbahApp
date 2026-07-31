@@ -248,7 +248,7 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
                   return <Cell key={`${config.id}-${index}`} fill={pieColors[index % pieColors.length]} />
                 })}
               </Pie>
-              <Tooltip {...tooltipStyle} formatter={(value) => [`${Number(value).toFixed(1)}%`, '']} />
+              <Tooltip {...tooltipStyle} formatter={(value, name) => [`${Number(value).toLocaleString('id-ID')} kg`, name]} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -259,7 +259,7 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
             <LineChart data={trendData} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} formatter={(value) => [`${Number(value).toFixed(1)} kg`, '']} />
+              <Tooltip {...tooltipStyle} formatter={(value, name) => [`${Number(value).toLocaleString('id-ID')} kg`, name]} />
               <Line
                 type="monotone"
                 dataKey="value"
