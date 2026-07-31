@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { useApp } from '../context'
 import { getDomesticTransactions } from '../api'
-import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
+import { useIsMobile, useIsTablet, useIsTouchDevice } from '../hooks/useMediaQuery'
 import {
   DOMESTIC_TRANSACTIONS, MONTHLY_DOM_MORNING, MONTHLY_DOM_AFTERNOON,
   PIE_DOM_MORNING, PIE_DOM_AFTERNOON, NOTIFICATIONS,
@@ -42,13 +42,15 @@ export default function DomesticPage() {
   const [loading, setLoading] = useState(true)
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  const isTouchDevice = useIsTouchDevice()
   const PAGE_SIZE = 10
 
+  // SESUDAH
   useEffect(() => {
-    getDomesticTransactions(page, PAGE_SIZE, filterSession)
+    getDomesticTransactions()
       .then((res) => {
         if (res?.data) {
-          const mapped = res.data.map((item: any) => ({
+          const mapped = res.data.map((item) => ({
             id: `DOM-${item.id}`,
             date: item.date,
             session: (item.session || 'MORNING').toLowerCase(),
@@ -67,7 +69,7 @@ export default function DomesticPage() {
         console.error('Failed to load domestic transactions:', err)
         setLoading(false)
       })
-  }, [page, filterSession])
+  }, [])
 
   const transactionsList = apiData ?? DOMESTIC_TRANSACTIONS
   const isGlass = theme === 'frosted' || theme === 'liquid'
@@ -130,7 +132,7 @@ export default function DomesticPage() {
             <BarChart data={MONTHLY_DOM_MORNING.map((d, i) => ({ name: d.month, morning: d.value, afternoon: MONTHLY_DOM_AFTERNOON[i]?.value ?? 0 }))} barSize={10}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} />
+              <Tooltip {...tooltipStyle} trigger={isTouchDevice ? 'click' : 'hover'} />
               <Bar dataKey="morning" fill={tokens.chartDomMorning} radius={[2, 2, 0, 0]} name="Pagi" />
               <Bar dataKey="afternoon" fill={tokens.chartDomAfternoon} radius={[2, 2, 0, 0]} name="Sore" />
             </BarChart>
@@ -149,8 +151,7 @@ export default function DomesticPage() {
                   <Cell fill={tokens.success} />
                   <Cell fill={tokens.accent} />
                 </Pie>
-                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
-              </PieChart>
+                <Tooltip {...tooltipStyle} trigger={isTouchDevice ? 'click' : 'hover'} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />              </PieChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 4 }}>
               <span style={{ fontSize: 10, color: tokens.success, display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: tokens.success, display: 'inline-block' }} />Organik</span>
@@ -167,8 +168,7 @@ export default function DomesticPage() {
                   <Cell fill={tokens.chartDomAfternoon} />
                   <Cell fill={tokens.warning} />
                 </Pie>
-                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
-              </PieChart>
+                <Tooltip {...tooltipStyle} trigger={isTouchDevice ? 'click' : 'hover'} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />              </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -194,7 +194,7 @@ export default function DomesticPage() {
             <LineChart data={trendData}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} />
+              <Tooltip {...tooltipStyle} trigger={isTouchDevice ? 'click' : 'hover'} />
               <Line type="monotone" dataKey="morning" stroke={tokens.chartDomMorning} strokeWidth={2} dot={false} name="Pagi" />
               <Line type="monotone" dataKey="afternoon" stroke={tokens.chartDomAfternoon} strokeWidth={2} dot={false} name="Sore" />
             </LineChart>

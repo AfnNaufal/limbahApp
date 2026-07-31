@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { useApp } from '../context'
 import { getDashboardSummary, type DashboardSummaryData } from '../api'
-import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
+import { useIsMobile, useIsTablet, useIsTouchDevice } from '../hooks/useMediaQuery'
 import {
   MONTHLY_B3_IN, MONTHLY_B3_OUT, MONTHLY_DOM_AFTERNOON, MONTHLY_DOM_MORNING,
   PIE_B3_IN, PIE_B3_OUT, PIE_DOM_AFTERNOON, PIE_DOM_MORNING, SUMMARY_STATS,
@@ -166,6 +166,7 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
   const isNight = theme === 'nightcity'
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  const isTouchDevice = useIsTouchDevice()
 
   const trendData =
     trendPeriod === 'monthly'
@@ -173,8 +174,8 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
       : trendPeriod === 'weekly'
         ? config.weeklyData
         : config.monthlyData
-            .map((item, index) => ({ ...item, name: String(2020 + index) }))
-            .slice(0, 5)
+          .map((item, index) => ({ ...item, name: String(2020 + index) }))
+          .slice(0, 5)
 
   const tooltipStyle = {
     contentStyle: {
@@ -222,10 +223,21 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
 
         <ChartCard title={t('barChart')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={config.barData} barSize={14} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
+            <BarChart
+              data={config.barData}
+              barSize={14}
+              margin={{ top: 4, right: 4, bottom: 4, left: -16 }}
+              onClick={(_, event) => {
+                if (isTouchDevice) event?.stopPropagation()
+              }}
+            >
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} formatter={(value) => [`${Number(value).toFixed(1)} kg`, '']} />
+              <Tooltip
+                {...tooltipStyle}
+                trigger={isTouchDevice ? 'click' : 'hover'}
+                formatter={(value) => [`${Number(value).toFixed(1)} kg`, '']}
+              />
               <Bar
                 dataKey="value"
                 fill={config.color}
@@ -239,13 +251,30 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
         <ChartCard title={t('distribution')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <ResponsiveContainer width="100%" height={120}>
             <PieChart>
-              <Pie data={config.pieData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} dataKey="value" paddingAngle={2}>
+              <Pie
+                data={config.pieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={30}
+                outerRadius={50}
+                dataKey="value"
+                paddingAngle={2}
+                onClick={(_, __, event) => {
+                  // Cegah tap pada slice ikut membuka drawer QuickPreview di mobile,
+                  // supaya tooltip persentase yang baru muncul tidak langsung tertutup.
+                  if (isTouchDevice) event.stopPropagation()
+                }}
+              >
                 {config.pieData.map((_, index) => {
                   const pieColors = [config.color, tokens.accent, tokens.warning, tokens.success, '#a78bfa', '#fb923c']
                   return <Cell key={`${config.id}-${index}`} fill={pieColors[index % pieColors.length]} />
                 })}
               </Pie>
-              <Tooltip {...tooltipStyle} formatter={(value) => [`${Number(value).toFixed(1)}%`, '']} />
+              <Tooltip
+                {...tooltipStyle}
+                trigger={isTouchDevice ? 'click' : 'hover'}
+                formatter={(value) => [`${Number(value).toFixed(1)}%`, '']}
+              />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -253,10 +282,20 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
         <ChartCard title={t('trend')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <TrendToggle value={trendPeriod} onChange={setTrendPeriod} tokens={tokens} />
           <ResponsiveContainer width="100%" height={96}>
-            <LineChart data={trendData} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
+            <LineChart
+              data={trendData}
+              margin={{ top: 4, right: 4, bottom: 4, left: -16 }}
+              onClick={(_, event) => {
+                if (isTouchDevice) event?.stopPropagation()
+              }}
+            >
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} formatter={(value) => [`${Number(value).toFixed(1)} kg`, '']} />
+              <Tooltip
+                {...tooltipStyle}
+                trigger={isTouchDevice ? 'click' : 'hover'}
+                formatter={(value) => [`${Number(value).toFixed(1)} kg`, '']}
+              />
               <Line
                 type="monotone"
                 dataKey="value"

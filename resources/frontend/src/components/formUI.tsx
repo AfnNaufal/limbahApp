@@ -43,7 +43,7 @@ export function useInputStyle(): CSSProperties {
     const { tokens } = useApp()
     return {
         width: '100%', minHeight: 42, padding: '10px 12px', borderRadius: Math.min(parseInt(tokens.radius) || 8, 10),
-        border: `1px solid ${tokens.border}`, background: tokens.inputBg, color: tokens.text, outline: 'none', fontSize: 14,
+        border: `1px solid ${tokens.border}`, background: tokens.inputBg, color: tokens.text, outline: 'none', fontSize: 14, fontFamily: 'inherit',
     }
 }
 

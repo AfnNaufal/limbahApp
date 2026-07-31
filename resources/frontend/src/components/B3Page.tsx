@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { useApp } from '../context'
 import { getB3Transactions } from '../api'
-import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
+import { useIsMobile, useIsTablet, useIsTouchDevice } from '../hooks/useMediaQuery'
 import {
   B3_TRANSACTIONS, MONTHLY_B3_IN, MONTHLY_B3_OUT,
   PIE_B3_IN, PIE_B3_OUT, STORAGE_ALERTS, NOTIFICATIONS,
@@ -44,13 +44,14 @@ export default function B3Page() {
   const [loading, setLoading] = useState(true)
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  const isTouchDevice = useIsTouchDevice()
   const PAGE_SIZE = 10
 
   useEffect(() => {
-    getB3Transactions(page, PAGE_SIZE, filterCat, filterStatus)
+    getB3Transactions()
       .then((res) => {
         if (res?.data) {
-          const mapped = res.data.map((item: any) => ({
+          const mapped = res.data.map((item) => ({
             id: `B3-${item.id}`,
             date: item.date,
             category: item.transaction_type === 'IN' ? 'b3in' : 'b3out',
@@ -71,7 +72,7 @@ export default function B3Page() {
         console.error('Failed to load B3 transactions:', err)
         setLoading(false)
       })
-  }, [page, filterCat, filterStatus])
+  }, [])
 
   const transactionsList = apiData ?? B3_TRANSACTIONS
 
@@ -213,7 +214,7 @@ export default function B3Page() {
             <BarChart data={MONTHLY_B3_IN.map((d, i) => ({ name: d.month, b3in: d.value, b3out: MONTHLY_B3_OUT[i]?.value ?? 0 }))} barSize={10}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} />
+              <Tooltip {...tooltipStyle} trigger={isTouchDevice ? 'click' : 'hover'} />
               <Bar dataKey="b3in" fill={tokens.chartB3In} radius={[2, 2, 0, 0]} name="B3 Masuk" />
               <Bar dataKey="b3out" fill={tokens.chartB3Out} radius={[2, 2, 0, 0]} name="B3 Keluar" />
             </BarChart>
@@ -233,8 +234,7 @@ export default function B3Page() {
                     <Cell key={i} fill={[tokens.chartB3In, tokens.chartB3Out, tokens.accent, tokens.warning, tokens.success, '#a78bfa'][i % 6]!} />
                   ))}
                 </Pie>
-                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
-              </PieChart>
+                <Tooltip {...tooltipStyle} trigger={isTouchDevice ? 'click' : 'hover'} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />              </PieChart>
             </ResponsiveContainer>
           </div>
           <div style={{ ...cardStyle, flex: 1 }}>
@@ -248,8 +248,7 @@ export default function B3Page() {
                     <Cell key={i} fill={[tokens.chartB3Out, tokens.accent, tokens.chartDomMorning, tokens.warning, '#a78bfa'][i % 5]!} />
                   ))}
                 </Pie>
-                <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
-              </PieChart>
+                <Tooltip {...tooltipStyle} trigger={isTouchDevice ? 'click' : 'hover'} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />              </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -275,7 +274,7 @@ export default function B3Page() {
             <LineChart data={trendData}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} />
+              <Tooltip {...tooltipStyle} trigger={isTouchDevice ? 'click' : 'hover'} />
               <Line type="monotone" dataKey="b3in" stroke={tokens.chartB3In} strokeWidth={2} dot={false} name="B3 Masuk" />
               <Line type="monotone" dataKey="b3out" stroke={tokens.chartB3Out} strokeWidth={2} dot={false} name="B3 Keluar" />
             </LineChart>
