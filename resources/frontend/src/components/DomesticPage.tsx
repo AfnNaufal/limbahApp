@@ -67,8 +67,8 @@ export default function DomesticPage() {
     setLoading(true)
     const periodRange = getPeriodDateRange(year, periodFilter)
     getDomesticTransactions({
-      page,
-      per_page: PAGE_SIZE,
+      page: 1,
+      per_page: 1000,
       movement_type: filterMovement === 'all' ? undefined : filterMovement,
       session: filterSession === 'all' ? undefined : filterSession.toUpperCase() as 'MORNING' | 'AFTERNOON',
       status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
@@ -104,7 +104,7 @@ export default function DomesticPage() {
 
   useEffect(() => {
     fetchData()
-  }, [page, filterMovement, filterSession, filterStatus, search, year, periodFilter])
+  }, [filterMovement, filterSession, filterStatus, search, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)

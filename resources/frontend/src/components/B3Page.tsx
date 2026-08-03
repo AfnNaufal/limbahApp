@@ -73,8 +73,8 @@ export default function B3Page() {
     setLoading(true)
     const periodRange = getPeriodDateRange(year, periodFilter)
     getB3Transactions({
-      page,
-      per_page: PAGE_SIZE,
+      page: 1,
+      per_page: 1000,
       type: filterCat === 'all' ? undefined : filterCat === 'b3in' ? 'IN' : 'OUT',
       status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
       search: search || undefined,
@@ -111,7 +111,7 @@ export default function B3Page() {
 
   useEffect(() => {
     fetchData()
-  }, [page, filterCat, filterStatus, filterFrom, filterTo, search, year, periodFilter])
+  }, [filterCat, filterStatus, filterFrom, filterTo, search, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)

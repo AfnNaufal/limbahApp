@@ -21,7 +21,8 @@ class WasteCategoryController
             $query->where('waste_type', $request->input('waste_type'));
         }
 
-        $categories = $query->orderBy('name', 'asc')->paginate(25);
+        $perPage = $request->input('per_page', 100);
+        $categories = $query->orderBy('name', 'asc')->paginate($perPage);
 
         return WasteCategoryResource::collection($categories);
     }
