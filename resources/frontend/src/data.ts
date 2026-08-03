@@ -1,43 +1,19 @@
-export type WasteStatus = 'pending' | 'processed' | 'disposed'
-export type WasteSession = 'morning' | 'afternoon'
-export type WasteCategory = 'b3in' | 'b3out' | 'domMorning' | 'domAfternoon'
+import type {
+  WasteStatus as WasteStatusType,
+  WasteSession as WasteSessionType,
+  WasteCategoryType,
+  B3TransactionData,
+  DomesticTransactionData,
+  AppNotification,
+} from './types/waste'
 
-export interface B3Transaction {
-  id: string
-  date: string
-  wasteCode: string
-  type: string
-  amountKg: number
-  source: string
-  destination: string
-  transport: string
-  manifest: string
-  status: WasteStatus
-  category: 'b3in' | 'b3out'
-  storageDeadlineDays?: number
-  storageCapacityKg?: number
-  currentStorageKg?: number
-}
+export type WasteStatus = WasteStatusType
+export type WasteSession = WasteSessionType
+export type WasteCategory = WasteCategoryType
 
-export interface DomesticTransaction {
-  id: string
-  date: string
-  session: WasteSession
-  organicKg: number
-  inorganicKg: number
-  totalKg: number
-  status: WasteStatus
-  picName: string
-}
-
-export interface Notification {
-  id: string
-  type: 'b3in' | 'b3out' | 'domestic' | 'alert'
-  title: string
-  message: string
-  timestamp: string
-  read: boolean
-}
+export type B3Transaction = B3TransactionData
+export type DomesticTransaction = DomesticTransactionData
+export type Notification = AppNotification
 
 const SOURCES = ['Lab Kimia', 'Produksi A', 'Gudang B', 'Workshop', 'Klinik', 'Boiler Room', 'Bengkel']
 const DESTINATIONS = ['PT Prasada Pamunah', 'PPLI Cileungsi', 'PT Wastec Intl', 'PT ARAH Enviro', 'PT Tenang Jaya']

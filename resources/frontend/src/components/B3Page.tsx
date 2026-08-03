@@ -12,18 +12,13 @@ import {
 } from '../data'
 import EmptyState from './EmptyState'
 import SkeletonLoader from './SkeletonLoader'
+import B3StorageAlerts from './b3/B3StorageAlerts'
+import B3FilterBar from './b3/B3FilterBar'
+import B3Table from './b3/B3Table'
+import B3EditModal from './b3/B3EditModal'
+import B3DeleteModal from './b3/B3DeleteModal'
 
 type TrendPeriod = 'weekly' | 'monthly' | 'yearly'
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: '#f59e0b',
-  processed: '#3b82f6',
-  disposed: '#22c55e',
-  received: '#3b82f6',
-  completed: '#22c55e',
-  draft: '#6b7280',
-  verified: '#22c55e',
-}
 
 const YEARLY_DATA = [
   { name: '2020', b3in: 8234.5, b3out: 7123.2 },
@@ -165,8 +160,8 @@ export default function B3Page() {
   }
 
   const transactionsList = apiData ?? B3_TRANSACTIONS
-
   const isGlass = theme === 'frosted' || theme === 'liquid'
+
   const filtered = useMemo(() => {
     const periodRange = getPeriodDateRange(year, periodFilter)
     return transactionsList.filter((tx) => {
@@ -276,60 +271,7 @@ export default function B3Page() {
     <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
 
       {/* Storage alerts */}
-      {STORAGE_ALERTS.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: tokens.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={tokens.warning} strokeWidth="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            {t('storageAlertTitle')} ({STORAGE_ALERTS.length})
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
-            {STORAGE_ALERTS.map((a) => {
-              const isExceeded = a.urgency === 'exceeded'
-              const maxDays = 90
-              const daysInStorage = Math.max(0, maxDays - (a.storageDeadlineDays ?? 0))
-              const color = isExceeded ? tokens.danger : tokens.warning
-              const pct = Math.min(100, Math.round((daysInStorage / maxDays) * 100))
-              const barColor = isExceeded ? tokens.danger : pct > 75 ? tokens.warning : tokens.success
-
-              return (
-                <div key={a.id} style={{
-                  background: `${color}10`, border: `1px solid ${color}40`,
-                  borderRadius: tokens.radius, padding: '10px 14px', fontSize: 12,
-                  display: 'flex', flexDirection: 'column', gap: 6,
-                  transition: 'transform 0.18s ease, box-shadow 0.18s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = tokens.shadow
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <div>
-                      <div style={{ fontWeight: 600, color: tokens.text }}>{a.type} ({a.wasteCode})</div>
-                      <div style={{ color: tokens.textMuted, fontSize: 11 }}>{a.amountKg} kg · Tersimpan {daysInStorage}/{maxDays} hari ({pct}%)</div>
-                    </div>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 3,
-                      background: color, color: '#fff', whiteSpace: 'nowrap',
-                    }}>
-                      {isExceeded ? `${daysInStorage - maxDays} HR LEWAT` : `${maxDays - daysInStorage} HR LAGI`}
-                    </span>
-                  </div>
-                  <div style={{ height: 5, background: `${color}25`, borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 3, transition: 'width 0.4s ease' }} />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      <B3StorageAlerts alerts={STORAGE_ALERTS as any} />
 
       {/* Grid Charts */}
       <div style={{ display: 'grid', gridTemplateColumns: chartColumns, gap: 16, marginBottom: 20 }}>
@@ -412,37 +354,21 @@ export default function B3Page() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table Section */}
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text }}>{t('allTransactions')} — B3</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <input type="text" placeholder={t('search')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              style={{ padding: '5px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, width: isMobile ? '100%' : 180, outline: 'none' }} />
-            <select value={filterCat} onChange={(e) => { setFilterCat(e.target.value as typeof filterCat); setPage(1) }}
-              style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, cursor: 'pointer' }}>
-              <option value="all">Semua</option>
-              <option value="b3in">B3 Masuk</option>
-              <option value="b3out">B3 Keluar</option>
-            </select>
-            <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value as typeof filterStatus); setPage(1) }}
-              style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily, cursor: 'pointer' }}>
-              <option value="all">{t('allStatuses')}</option>
-              <option value="pending">{t('pending')}</option>
-              <option value="processed">{t('processed')}</option>
-              <option value="disposed">{t('disposed')}</option>
-            </select>
-            <input type="date" value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1) }}
-              style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily }} />
-            <input type="date" value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1) }}
-              style={{ padding: '5px 8px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, fontFamily: tokens.fontFamily }} />
-            {(search || filterCat !== 'all' || filterStatus !== 'all' || filterFrom || filterTo) && (
-              <button onClick={() => { setSearch(''); setFilterCat('all'); setFilterStatus('all'); setFilterFrom(''); setFilterTo(''); setPage(1) }}
-                style={{ padding: '5px 10px', background: `${tokens.danger}15`, border: `1px solid ${tokens.danger}40`, borderRadius: tokens.radius, fontSize: 12, color: tokens.danger, cursor: 'pointer', fontFamily: tokens.fontFamily }}>
-                {t('reset')}
-              </button>
-            )}
-          </div>
+          <B3FilterBar
+            filterCat={filterCat}
+            setFilterCat={(val) => { setFilterCat(val); setPage(1) }}
+            filterStatus={filterStatus}
+            setFilterStatus={(val) => { setFilterStatus(val); setPage(1) }}
+            filterFrom={filterFrom}
+            setFilterFrom={(val) => { setFilterFrom(val); setPage(1) }}
+            filterTo={filterTo}
+            setFilterTo={(val) => { setFilterTo(val); setPage(1) }}
+            onReset={() => { setSearch(''); setFilterCat('all'); setFilterStatus('all'); setFilterFrom(''); setFilterTo(''); setPage(1) }}
+          />
         </div>
 
         {loading && !apiData ? (
@@ -454,180 +380,17 @@ export default function B3Page() {
             icon={search ? 'search' : 'empty'}
           />
         ) : (
-          <>
-            {isMobile ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {paginated.map((tx) => (
-                  <div
-                    key={tx.id}
-                    style={{
-                      background: tokens.inputBg,
-                      border: `1px solid ${tokens.border}`,
-                      borderRadius: tokens.radius,
-                      padding: '12px 14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: tokens.primary, fontVariantNumeric: 'tabular-nums' }}>{tx.id}</span>
-                      <span style={{
-                        fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
-                        background: `${STATUS_COLORS[tx.status] || '#3b82f6'}22`,
-                        color: STATUS_COLORS[tx.status] || '#3b82f6',
-                      }}>{t(tx.status) || tx.status}</span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: tokens.text }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: tx.category === 'b3in' ? tokens.chartB3In : tokens.chartB3Out, flexShrink: 0 }} />
-                        {tx.type}
-                      </div>
-                      <span style={{ fontWeight: 700, color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>
-                        {(tx.amountKg ?? tx.weightKg ?? 0).toFixed(1)} kg
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: tokens.textMuted }}>
-                      <div>📅 {tx.date}</div>
-                      <div>📄 Manifest: {tx.manifest}</div>
-                      <div>📍 {tx.category === 'b3in' ? `Dari: ${tx.source}` : `Ke: ${tx.destination}`}</div>
-                      <div>🚚 Transporter: {tx.transporter}</div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, paddingTop: 8, borderTop: `1px solid ${tokens.border}` }}>
-                      {tx.scalePhotoUrl ? (
-                        <img
-                          src={tx.scalePhotoUrl}
-                          alt="Foto Timbangan"
-                          onClick={() => setPreviewImage(tx.scalePhotoUrl)}
-                          style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: `1px solid ${tokens.border}` }}
-                        />
-                      ) : (
-                        <span style={{ fontSize: 11, color: tokens.textMuted }}>-</span>
-                      )}
-
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(tx)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.primary, fontWeight: 600 }}
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeletingTx(tx)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.danger, fontWeight: 600 }}
-                        >
-                          🗑️ Hapus
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: tokens.fontFamily }}>
-                  <thead>
-                    <tr style={{ borderBottom: `2px solid ${tokens.border}` }}>
-                      {['ID', t('date'), t('type'), t('source'), t('destination'), t('amount'), t('status'), 'Manifest', 'Foto', 'Aksi'].map((h) => (
-                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: tokens.textMuted, fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.map((tx, i) => (
-                      <tr key={tx.id} style={{ borderBottom: `1px solid ${tokens.border}`, background: i % 2 === 0 ? 'transparent' : `${tokens.border}40`, transition: 'background 0.1s' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = `${tokens.primary}10` }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : `${tokens.border}40` }}>
-                        <td style={{ padding: '8px 10px', color: tokens.primary, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{tx.id}</td>
-                        <td style={{ padding: '8px 10px', color: tokens.text, whiteSpace: 'nowrap' }}>{tx.date}</td>
-                        <td style={{ padding: '8px 10px', color: tokens.text }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: tx.category === 'b3in' ? tokens.chartB3In : tokens.chartB3Out, flexShrink: 0 }} />
-                            {tx.type}
-                          </div>
-                        </td>
-                        <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.source}</td>
-                        <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.destination}</td>
-                        <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                          {(tx.amountKg ?? tx.weightKg ?? 0).toFixed(1)} kg
-                        </td>
-                        <td style={{ padding: '8px 10px' }}>
-                          <span style={{
-                            fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
-                            background: `${STATUS_COLORS[tx.status] || '#3b82f6'}22`,
-                            color: STATUS_COLORS[tx.status] || '#3b82f6',
-                          }}>{t(tx.status) || tx.status}</span>
-                        </td>
-                        <td style={{ padding: '8px 10px', color: tokens.textMuted, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{tx.manifest}</td>
-                        <td style={{ padding: '8px 10px' }}>
-                          {tx.scalePhotoUrl ? (
-                            <img
-                              src={tx.scalePhotoUrl}
-                              alt="Foto Timbangan"
-                              onClick={() => setPreviewImage(tx.scalePhotoUrl)}
-                              style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: `1px solid ${tokens.border}` }}
-                            />
-                          ) : (
-                            <span style={{ fontSize: 11, color: tokens.textMuted }}>-</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEdit(tx)}
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, marginRight: 8, color: tokens.primary, fontWeight: 600 }}
-                            title="Edit Transaksi"
-                          >
-                            ✏️ Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeletingTx(tx)}
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: tokens.danger, fontWeight: 600 }}
-                            title="Hapus Transaksi"
-                          >
-                            🗑️ Hapus
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: `1px solid ${tokens.border}`, flexWrap: 'wrap', gap: 10 }}>
-              <span style={{ fontSize: 12, color: tokens.textMuted }}>
-                Menampilkan {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} dari {filtered.length} data
-              </span>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                  style={{ padding: '4px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: page === 1 ? 'default' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontFamily: tokens.fontFamily }}>
-                  ‹ Prev
-                </button>
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i
-                  return (
-                    <button key={p} onClick={() => setPage(p)} style={{
-                      padding: '4px 8px', background: p === page ? tokens.primary : tokens.inputBg,
-                      border: `1px solid ${p === page ? tokens.primary : tokens.border}`,
-                      borderRadius: tokens.radius, fontSize: 12,
-                      color: p === page ? tokens.textInverse : tokens.text,
-                      cursor: 'pointer', fontFamily: tokens.fontFamily, minWidth: 30,
-                    }}>{p}</button>
-                  )
-                })}
-                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  style={{ padding: '4px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: page === totalPages ? 'default' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontFamily: tokens.fontFamily }}>
-                  Next ›
-                </button>
-              </div>
-            </div>
-          </>
+          <B3Table
+            paginated={paginated}
+            filteredCount={filtered.length}
+            page={page}
+            totalPages={totalPages}
+            setPage={setPage}
+            pageSize={PAGE_SIZE}
+            onEdit={handleOpenEdit}
+            onDelete={(tx) => setDeletingTx(tx)}
+            onPreviewImage={(url) => setPreviewImage(url)}
+          />
         )}
       </div>
 
@@ -701,157 +464,22 @@ export default function B3Page() {
       )}
 
       {/* Edit Modal */}
-      {editingTx && (
-        <div
-          onClick={() => setEditingTx(null)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 110,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%', maxWidth: 480, background: tokens.card, border: `1px solid ${tokens.cardBorder}`,
-              borderRadius: tokens.radius, padding: 20, boxShadow: tokens.shadow, display: 'flex', flexDirection: 'column', gap: 14,
-            }}
-          >
-            <div style={{ fontSize: 16, fontWeight: 700, color: tokens.text }}>Edit Transaksi {editingTx.id}</div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Jumlah Berat (kg)</label>
-                <input
-                  type="number" step="0.1" min="0"
-                  value={editForm.weight_kg}
-                  onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })}
-                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Status Transaksi</label>
-                <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
-                >
-                  <option value="PENDING">PENDING</option>
-                  <option value="RECEIVED">RECEIVED</option>
-                  <option value="PROCESSED">PROCESSED</option>
-                  <option value="COMPLETED">COMPLETED</option>
-                  <option value="REJECTED">REJECTED</option>
-                </select>
-              </div>
-
-              {editingTx.category === 'b3in' ? (
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Sumber Limbah</label>
-                  <input
-                    type="text"
-                    value={editForm.source}
-                    onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
-                    style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
-                  />
-                </div>
-              ) : (
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Tujuan Penyerahan</label>
-                  <input
-                    type="text"
-                    value={editForm.destination}
-                    onChange={(e) => setEditForm({ ...editForm, destination: e.target.value })}
-                    style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Nomor Manifest</label>
-                <input
-                  type="text"
-                  value={editForm.manifest_number}
-                  onChange={(e) => setEditForm({ ...editForm, manifest_number: e.target.value })}
-                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Catatan</label>
-                <textarea
-                  value={editForm.notes}
-                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                  rows={2}
-                  style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text, resize: 'vertical' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
-              <button
-                type="button"
-                onClick={() => setEditingTx(null)}
-                style={{ padding: '7px 14px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: 'pointer' }}
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                disabled={saving}
-                style={{ padding: '7px 14px', background: tokens.primary, border: 'none', borderRadius: tokens.radius, fontSize: 12, color: tokens.textInverse, fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}
-              >
-                {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <B3EditModal
+        editingTx={editingTx}
+        editForm={editForm}
+        setEditForm={setEditForm}
+        onClose={() => setEditingTx(null)}
+        onSave={handleSaveEdit}
+        saving={saving}
+      />
 
       {/* Delete Confirmation Modal */}
-      {deletingTx && (
-        <div
-          onClick={() => setDeletingTx(null)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 110,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%', maxWidth: 400, background: tokens.card, border: `1px solid ${tokens.cardBorder}`,
-              borderRadius: tokens.radius, padding: 20, boxShadow: tokens.shadow, display: 'flex', flexDirection: 'column', gap: 14,
-            }}
-          >
-            <div style={{ fontSize: 16, fontWeight: 700, color: tokens.danger }}>Konfirmasi Hapus Transaksi</div>
-            <div style={{ fontSize: 13, color: tokens.text }}>
-              Apakah Anda yakin ingin menghapus data transaksi <strong>{deletingTx.id}</strong> ({deletingTx.type})?
-            </div>
-            <div style={{ fontSize: 11, color: tokens.textMuted }}>
-              Data ini akan diarsipkan (soft delete) dan tetap tersimpan di database untuk audit.
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
-              <button
-                type="button"
-                onClick={() => setDeletingTx(null)}
-                style={{ padding: '7px 14px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 12, color: tokens.text, cursor: 'pointer' }}
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={saving}
-                style={{ padding: '7px 14px', background: tokens.danger, border: 'none', borderRadius: tokens.radius, fontSize: 12, color: '#fff', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}
-              >
-                {saving ? 'Menghapus...' : 'Ya, Hapus Transaksi'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <B3DeleteModal
+        deletingTx={deletingTx}
+        onClose={() => setDeletingTx(null)}
+        onConfirm={handleConfirmDelete}
+        saving={saving}
+      />
     </div>
   )
 }

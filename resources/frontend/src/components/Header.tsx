@@ -184,8 +184,8 @@ export default function Header() {
       type: n.type,
       title: n.title,
       message: n.message,
-      read: n.read,
-      timestamp: n.timestamp,
+      read: Boolean(n.read),
+      timestamp: n.timestamp ?? new Date().toISOString(),
     }))
   )
   const notifRef = useRef<HTMLDivElement>(null)
@@ -201,8 +201,8 @@ export default function Header() {
               type: n.type,
               title: n.title,
               message: n.message,
-              read: Boolean(n.is_read),
-              timestamp: n.created_at,
+              read: Boolean(n.is_read ?? n.read),
+              timestamp: n.created_at ?? n.timestamp ?? new Date().toISOString(),
             }))
           )
         }
