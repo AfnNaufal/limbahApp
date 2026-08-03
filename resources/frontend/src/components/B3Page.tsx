@@ -77,6 +77,7 @@ export default function B3Page() {
       per_page: PAGE_SIZE,
       type: filterCat === 'all' ? undefined : filterCat === 'b3in' ? 'IN' : 'OUT',
       status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
+      search: search || undefined,
       from: filterFrom || periodRange.from,
       to: filterTo || periodRange.to,
     })
@@ -110,7 +111,7 @@ export default function B3Page() {
 
   useEffect(() => {
     fetchData()
-  }, [page, filterCat, filterStatus, filterFrom, filterTo, year, periodFilter])
+  }, [page, filterCat, filterStatus, filterFrom, filterTo, search, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)
@@ -187,7 +188,7 @@ export default function B3Page() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
 
   const trendData = useMemo(() => {
-    if (apiData && apiData.length > 0) {
+    if (apiData !== null) {
       const monthMap: Record<string, { b3in: number; b3out: number }> = {}
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
       monthNames.forEach((m) => { monthMap[m] = { b3in: 0, b3out: 0 } })
@@ -219,7 +220,7 @@ export default function B3Page() {
   }, [apiData, filtered, trendPeriod])
 
   const dynamicPieIn = useMemo(() => {
-    if (apiData && apiData.length > 0) {
+    if (apiData !== null) {
       const catMap: Record<string, number> = {}
       filtered.filter((tx) => tx.category === 'b3in').forEach((tx) => {
         const name = tx.type || 'Limbah B3'
@@ -227,12 +228,13 @@ export default function B3Page() {
       })
       const entries = Object.entries(catMap).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
       if (entries.length > 0) return entries
+      return [{ name: 'Belum ada data', value: 0 }]
     }
     return PIE_B3_IN
   }, [apiData, filtered])
 
   const dynamicPieOut = useMemo(() => {
-    if (apiData && apiData.length > 0) {
+    if (apiData !== null) {
       const destMap: Record<string, number> = {}
       filtered.filter((tx) => tx.category === 'b3out').forEach((tx) => {
         const name = tx.destination || 'Pihak Ke-3'
@@ -240,6 +242,7 @@ export default function B3Page() {
       })
       const entries = Object.entries(destMap).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
       if (entries.length > 0) return entries
+      return [{ name: 'Belum ada data', value: 0 }]
     }
     return PIE_B3_OUT
   }, [apiData, filtered])

@@ -21,11 +21,11 @@ class UpdateDomesticTransactionRequest extends FormRequest
 
         return [
             'date' => ['sometimes', 'date', 'before_or_equal:today'],
-            'movement_type' => ['sometimes', Rule::in(['IN', 'OUT'])],
-            'session' => ['nullable', Rule::in(['MORNING', 'AFTERNOON'])],
-            'processing_method' => ['nullable', Rule::in(['PROCESSED', 'LANDFILL'])],
+            'movement_type' => ['sometimes', Rule::enum(\App\Enums\WasteMovementType::class)],
+            'session' => ['nullable', Rule::enum(\App\Enums\WasteSession::class)],
+            'processing_method' => ['nullable', Rule::enum(\App\Enums\ProcessingMethod::class)],
             ...$detailRules,
-            'status' => ['sometimes', Rule::in(['DRAFT', 'SUBMITTED', 'VERIFIED', 'REJECTED'])],
+            'status' => ['sometimes', Rule::enum(\App\Enums\TransactionStatus::class)],
             'pic_name' => ['sometimes', 'string', 'max:255'],
             'pic_phone' => ['nullable', 'string', 'max:20'],
             'notes' => ['nullable', 'string', 'max:1000'],

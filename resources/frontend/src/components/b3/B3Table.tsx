@@ -69,7 +69,7 @@ export default function B3Table({
                   {tx.type}
                 </div>
                 <span style={{ fontWeight: 700, color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>
-                  {(tx.amountKg ?? tx.weightKg ?? 0).toFixed(1)} kg
+                  {Number(tx.amountKg ?? tx.weightKg ?? 0).toFixed(1)} kg
                 </span>
               </div>
 
@@ -138,7 +138,7 @@ export default function B3Table({
                   <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.source}</td>
                   <td style={{ padding: '8px 10px', color: tokens.text }}>{tx.destination}</td>
                   <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                    {(tx.amountKg ?? tx.weightKg ?? 0).toFixed(1)} kg
+                    {Number(tx.amountKg ?? tx.weightKg ?? 0).toFixed(1)} kg
                   </td>
                   <td style={{ padding: '8px 10px' }}>
                     <span style={{

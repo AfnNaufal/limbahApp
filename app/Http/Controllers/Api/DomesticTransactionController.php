@@ -22,12 +22,19 @@ class DomesticTransactionController
     public function index(Request $request): AnonymousResourceCollection
     {
         $perPage = $request->input('per_page', 25);
+        $movementType = $request->input('movement_type'); // IN or OUT
         $session = $request->input('session'); // MORNING or AFTERNOON
         $status = $request->input('status');
+        $search = $request->input('search');
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
 
         $query = DomesticTransaction::query();
+
+        // Filter by movement type
+        if ($movementType && in_array($movementType, ['IN', 'OUT'])) {
+            $query->where('movement_type', $movementType);
+        }
 
         // Filter by session
         if ($session && in_array($session, ['MORNING', 'AFTERNOON'])) {
@@ -39,15 +46,27 @@ class DomesticTransactionController
             $query->where('status', $status);
         }
 
+        // Search by keyword
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('pic_name', 'like', "%{$search}%")
+                  ->orWhere('notes', 'like', "%{$search}%")
+                  ->orWhere('processing_method', 'like', "%{$search}%")
+                  ->orWhere('id', 'like', "%{$search}%");
+            });
+        }
+
         // Filter by date range
-        if ($dateFrom && $dateTo) {
+        if ($dateFrom) {
             try {
-                $from = Carbon::parse($dateFrom)->startOfDay();
-                $to = Carbon::parse($dateTo)->endOfDay();
-                $query->whereBetween('date', [$from, $to]);
-            } catch (\Throwable $e) {
-                // Ignore malformed date format gracefully
-            }
+                $query->where('date', '>=', Carbon::parse($dateFrom)->startOfDay());
+            } catch (\Throwable $e) {}
+        }
+
+        if ($dateTo) {
+            try {
+                $query->where('date', '<=', Carbon::parse($dateTo)->endOfDay());
+            } catch (\Throwable $e) {}
         }
 
         $transactions = $query->orderBy('date', 'desc')->paginate($perPage);

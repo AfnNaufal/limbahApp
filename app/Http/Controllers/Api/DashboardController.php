@@ -85,10 +85,12 @@ class DashboardController
     public function monthlyTrends(Request $request): JsonResponse
     {
         $months = $request->input('months', 12);
-        $trends = $this->service->getMonthlyTrends($months);
+        $year = $request->input('year') ? (int) $request->input('year') : null;
+        $trends = $this->service->getMonthlyTrends($months, $year);
 
         return response()->json([
             'months' => $months,
+            'year' => $year,
             'trends' => $trends,
         ]);
     }

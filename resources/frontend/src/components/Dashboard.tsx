@@ -378,7 +378,7 @@ function QuickPreview({ id, onClose, onOpenFull }: QuickPreviewProps) {
 }
 
 export default function Dashboard() {
-  const { tokens, setPage, t } = useApp()
+  const { tokens, setPage, t, year } = useApp()
   const [preview, setPreview] = useState<string | null>(null)
   const [summaryData, setSummaryData] = useState<DashboardSummaryData | null>(null)
   const [trendsData, setTrendsData] = useState<DashboardTrendItem[] | null>(null)
@@ -397,7 +397,7 @@ export default function Dashboard() {
         setApiError(false)
         const [summary, trends, breakdown] = await Promise.all([
           getDashboardSummary().catch(() => null),
-          getDashboardTrends().catch(() => null),
+          getDashboardTrends(12, year).catch(() => null),
           getDashboardCategoryBreakdown().catch(() => null),
         ])
         if (active) {
@@ -417,30 +417,30 @@ export default function Dashboard() {
     return () => {
       active = false
     }
-  }, [])
+  }, [year])
 
-  const b3InWeight = Number(summaryData?.b3_in_weight_kg) || SUMMARY_STATS.b3In.total
-  const b3OutWeight = Number(summaryData?.b3_out_weight_kg) || SUMMARY_STATS.b3Out.total
-  const domesticOrganicWeight = Number(summaryData?.domestic_today_organic_kg) || SUMMARY_STATS.domMorning.total
-  const domesticInorganicWeight = Number(summaryData?.domestic_today_inorganic_kg) || SUMMARY_STATS.domAfternoon.total
+  const b3InWeight = summaryData !== null ? Number(summaryData.b3_in_weight_kg ?? 0) : SUMMARY_STATS.b3In.total
+  const b3OutWeight = summaryData !== null ? Number(summaryData.b3_out_weight_kg ?? 0) : SUMMARY_STATS.b3Out.total
+  const domesticOrganicWeight = summaryData !== null ? Number(summaryData.domestic_today_organic_kg ?? 0) : SUMMARY_STATS.domMorning.total
+  const domesticInorganicWeight = summaryData !== null ? Number(summaryData.domestic_today_inorganic_kg ?? 0) : SUMMARY_STATS.domAfternoon.total
 
-  const monthlyB3In = trendsData && trendsData.length > 0
+  const monthlyB3In = trendsData !== null
     ? trendsData.map((t) => ({ name: t.month_name, value: t.b3_in_weight_kg }))
     : MONTHLY_B3_IN.map((item) => ({ name: item.month, value: item.value }))
 
-  const monthlyB3Out = trendsData && trendsData.length > 0
+  const monthlyB3Out = trendsData !== null
     ? trendsData.map((t) => ({ name: t.month_name, value: t.b3_out_weight_kg }))
     : MONTHLY_B3_OUT.map((item) => ({ name: item.month, value: item.value }))
 
-  const monthlyDomOrganic = trendsData && trendsData.length > 0
+  const monthlyDomOrganic = trendsData !== null
     ? trendsData.map((t) => ({ name: t.month_name, value: t.domestic_organic_kg }))
     : MONTHLY_DOM_MORNING.map((item) => ({ name: item.month, value: item.value }))
 
-  const monthlyDomInorganic = trendsData && trendsData.length > 0
+  const monthlyDomInorganic = trendsData !== null
     ? trendsData.map((t) => ({ name: t.month_name, value: t.domestic_inorganic_kg }))
     : MONTHLY_DOM_AFTERNOON.map((item) => ({ name: item.month, value: item.value }))
 
-  const b3PieData = breakdownData && breakdownData.length > 0
+  const b3PieData = breakdownData !== null && breakdownData.length > 0
     ? breakdownData.map((b) => ({ name: b.category_name, value: b.total_weight_kg }))
     : PIE_B3_IN
 

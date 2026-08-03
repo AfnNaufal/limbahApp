@@ -2,6 +2,8 @@ import { useApp } from '../../context'
 import { useIsMobile } from '../../hooks/useMediaQuery'
 
 interface DomesticFilterBarProps {
+  filterMovement: 'all' | 'IN' | 'OUT'
+  setFilterMovement: (val: 'all' | 'IN' | 'OUT') => void
   filterSession: 'all' | 'morning' | 'afternoon'
   setFilterSession: (val: 'all' | 'morning' | 'afternoon') => void
   filterStatus: 'all' | 'pending' | 'processed' | 'disposed'
@@ -10,6 +12,8 @@ interface DomesticFilterBarProps {
 }
 
 export default function DomesticFilterBar({
+  filterMovement,
+  setFilterMovement,
   filterSession,
   setFilterSession,
   filterStatus,
@@ -19,7 +23,7 @@ export default function DomesticFilterBar({
   const { tokens, t, search, setSearch } = useApp()
   const isMobile = useIsMobile()
 
-  const hasFilter = search || filterSession !== 'all' || filterStatus !== 'all'
+  const hasFilter = search || filterMovement !== 'all' || filterSession !== 'all' || filterStatus !== 'all'
 
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -40,6 +44,24 @@ export default function DomesticFilterBar({
           outline: 'none',
         }}
       />
+      <select
+        value={filterMovement}
+        onChange={(e) => setFilterMovement(e.target.value as typeof filterMovement)}
+        style={{
+          padding: '5px 8px',
+          background: tokens.inputBg,
+          border: `1px solid ${tokens.border}`,
+          borderRadius: tokens.radius,
+          fontSize: 12,
+          color: tokens.text,
+          fontFamily: tokens.fontFamily,
+          cursor: 'pointer',
+        }}
+      >
+        <option value="all">Semua Pergerakan</option>
+        <option value="IN">Masuk (IN)</option>
+        <option value="OUT">Keluar (OUT)</option>
+      </select>
       <select
         value={filterSession}
         onChange={(e) => setFilterSession(e.target.value as typeof filterSession)}

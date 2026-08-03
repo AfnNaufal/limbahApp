@@ -177,9 +177,37 @@ class DashboardService
     /**
      * Get monthly trends
      */
-    public function getMonthlyTrends(int $months = 12): array
+    public function getMonthlyTrends(int $months = 12, ?int $year = null): array
     {
         $trends = [];
+
+        if ($year) {
+            for ($month = 1; $month <= 12; $month++) {
+                $date = Carbon::create($year, $month, 1);
+                $from = $date->clone()->startOfMonth();
+                $to = $date->clone()->endOfMonth();
+
+                $b3InWeight = (float) B3Transaction::byDateRange($from, $to)->where('transaction_type', 'IN')->sum('weight_kg');
+                $b3OutWeight = (float) B3Transaction::byDateRange($from, $to)->where('transaction_type', 'OUT')->sum('weight_kg');
+
+                $domOrganicWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('organic_weight_kg');
+                $domInorganicWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('inorganic_weight_kg');
+                $domTotalWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('total_weight_kg');
+
+                $trends[] = [
+                    'month' => $date->format('Y-m'),
+                    'month_name' => $date->format('M'),
+                    'b3_in_weight_kg' => $b3InWeight,
+                    'b3_out_weight_kg' => $b3OutWeight,
+                    'b3_weight_kg' => $b3InWeight + $b3OutWeight,
+                    'domestic_organic_kg' => $domOrganicWeight,
+                    'domestic_inorganic_kg' => $domInorganicWeight,
+                    'domestic_weight_kg' => $domTotalWeight > 0 ? $domTotalWeight : ($domOrganicWeight + $domInorganicWeight),
+                ];
+            }
+
+            return $trends;
+        }
 
         for ($i = $months - 1; $i >= 0; $i--) {
             $date = now()->subMonths($i);

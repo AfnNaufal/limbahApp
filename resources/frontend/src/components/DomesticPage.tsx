@@ -30,6 +30,7 @@ const YEARLY_DATA = [
 export default function DomesticPage() {
   const { tokens, t, theme, search, setSearch, year, periodFilter } = useApp()
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
+  const [filterMovement, setFilterMovement] = useState<'all' | 'IN' | 'OUT'>('all')
   const [filterSession, setFilterSession] = useState<'all' | 'morning' | 'afternoon'>('all')
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'processed' | 'disposed'>('all')
   const [page, setPage] = useState(1)
@@ -54,7 +55,7 @@ export default function DomesticPage() {
       return apiData.slice(0, 5).map((tx) => {
         const isMorning = tx.session === 'MORNING' || tx.session === 'morning'
         const title = isMorning ? 'Sesi Pagi Selesai' : 'Sesi Sore Selesai'
-        const message = `Pencatatan total ${(tx.totalKg ?? tx.total_weight_kg ?? 0).toFixed(1)} kg (${(tx.organicKg ?? tx.organic_weight_kg ?? 0).toFixed(1)} kg organik)`
+        const message = `Pencatatan total ${Number(tx.totalKg ?? tx.total_weight_kg ?? 0).toFixed(1)} kg (${Number(tx.organicKg ?? tx.organic_weight_kg ?? 0).toFixed(1)} kg organik)`
         const timestamp = tx.date || new Date().toISOString()
         return { id: tx.id, type: 'domestic', title, message, timestamp }
       })
@@ -68,8 +69,10 @@ export default function DomesticPage() {
     getDomesticTransactions({
       page,
       per_page: PAGE_SIZE,
+      movement_type: filterMovement === 'all' ? undefined : filterMovement,
       session: filterSession === 'all' ? undefined : filterSession.toUpperCase() as 'MORNING' | 'AFTERNOON',
       status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
+      search: search || undefined,
       from: periodRange.from,
       to: periodRange.to,
     })
@@ -79,10 +82,12 @@ export default function DomesticPage() {
             id: `DOM-${item.id}`,
             rawId: item.id,
             date: item.date,
+            movementType: item.movement_type || 'IN',
             session: item.session === 'MORNING' ? 'morning' : 'afternoon',
             organicKg: Number(item.organic_weight_kg ?? 0),
             inorganicKg: Number(item.inorganic_weight_kg ?? 0),
             totalKg: Number(item.total_weight_kg ?? 0),
+            domestic_residue_kg: item.domestic_residue_kg,
             status: (item.status || 'SUBMITTED').toLowerCase(),
             picName: item.pic_name || 'Petugas',
             notes: item.notes || '',
@@ -99,12 +104,12 @@ export default function DomesticPage() {
 
   useEffect(() => {
     fetchData()
-  }, [page, filterSession, filterStatus, year, periodFilter])
+  }, [page, filterMovement, filterSession, filterStatus, search, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)
     setEditForm({
-      domestic_residue_kg: String(tx.domestic_residue_kg ?? ''),
+      domestic_residue_kg: String(tx.domestic_residue_kg ?? tx.organicKg ?? tx.organic_weight_kg ?? ''),
       status: String(tx.status).toUpperCase(),
       pic_name: tx.picName || tx.pic_name || '',
       notes: tx.notes || '',
@@ -168,7 +173,7 @@ export default function DomesticPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
 
   const trendData = useMemo(() => {
-    if (apiData && apiData.length > 0) {
+    if (apiData !== null) {
       const monthMap: Record<string, { morning: number; afternoon: number }> = {}
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
       monthNames.forEach((m) => { monthMap[m] = { morning: 0, afternoon: 0 } })
@@ -311,11 +316,13 @@ export default function DomesticPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text }}>{t('allTransactions')} — Domestik</div>
           <DomesticFilterBar
+            filterMovement={filterMovement}
+            setFilterMovement={(val) => { setFilterMovement(val); setPage(1) }}
             filterSession={filterSession}
             setFilterSession={(val) => { setFilterSession(val); setPage(1) }}
             filterStatus={filterStatus}
             setFilterStatus={(val) => { setFilterStatus(val); setPage(1) }}
-            onReset={() => { setSearch(''); setFilterSession('all'); setFilterStatus('all'); setPage(1) }}
+            onReset={() => { setSearch(''); setFilterMovement('all'); setFilterSession('all'); setFilterStatus('all'); setPage(1) }}
           />
         </div>
 

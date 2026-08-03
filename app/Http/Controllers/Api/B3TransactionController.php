@@ -24,6 +24,7 @@ class B3TransactionController
         $perPage = $request->input('per_page', 25);
         $type = $request->input('type'); // IN or OUT
         $status = $request->input('status');
+        $search = $request->input('search');
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
 
@@ -39,15 +40,30 @@ class B3TransactionController
             $query->where('status', $status);
         }
 
+        // Search by keyword
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('waste_code', 'like', "%{$search}%")
+                  ->orWhere('waste_name', 'like', "%{$search}%")
+                  ->orWhere('source', 'like', "%{$search}%")
+                  ->orWhere('destination', 'like', "%{$search}%")
+                  ->orWhere('transporter', 'like', "%{$search}%")
+                  ->orWhere('manifest_number', 'like', "%{$search}%")
+                  ->orWhere('id', 'like', "%{$search}%");
+            });
+        }
+
         // Filter by date range
-        if ($dateFrom && $dateTo) {
+        if ($dateFrom) {
             try {
-                $from = Carbon::parse($dateFrom)->startOfDay();
-                $to = Carbon::parse($dateTo)->endOfDay();
-                $query->whereBetween('date', [$from, $to]);
-            } catch (\Throwable $e) {
-                // Ignore malformed date format gracefully
-            }
+                $query->where('date', '>=', Carbon::parse($dateFrom)->startOfDay());
+            } catch (\Throwable $e) {}
+        }
+
+        if ($dateTo) {
+            try {
+                $query->where('date', '<=', Carbon::parse($dateTo)->endOfDay());
+            } catch (\Throwable $e) {}
         }
 
         $transactions = $query->orderBy('date', 'desc')->paginate($perPage);

@@ -51,6 +51,16 @@ export default function DomesticEditModal({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Jumlah Berat Residu/Sampah (kg)</label>
+            <input
+              type="number" step="0.1" min="0"
+              value={editForm.domestic_residue_kg}
+              onChange={(e) => setEditForm({ ...editForm, domestic_residue_kg: e.target.value })}
+              style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
+            />
+          </div>
+
+          <div>
             <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Petugas Penanggung Jawab (PIC)</label>
             <input
               type="text"

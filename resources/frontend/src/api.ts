@@ -137,8 +137,11 @@ export type CategoryBreakdownItem = {
   out_count: number;
 };
 
-export async function getDashboardTrends(months = 12): Promise<DashboardTrendItem[]> {
-  const res = await getApi<{ trends: DashboardTrendItem[] }>(`/api/dashboard/trends?months=${months}`);
+export async function getDashboardTrends(months = 12, year?: string | number): Promise<DashboardTrendItem[]> {
+  const query = new URLSearchParams()
+  if (months) query.set('months', String(months))
+  if (year) query.set('year', String(year))
+  const res = await getApi<{ trends: DashboardTrendItem[] }>(`/api/dashboard/trends?${query.toString()}`)
   return res?.trends ?? [];
 }
 
@@ -169,6 +172,7 @@ export async function getB3Transactions(
     per_page?: number;
     type?: 'IN' | 'OUT';
     status?: string;
+    search?: string;
     from?: string;
     to?: string;
   },
@@ -179,6 +183,7 @@ export async function getB3Transactions(
   if (params?.per_page) searchParams.set('per_page', String(params.per_page));
   if (params?.type) searchParams.set('type', params.type);
   if (params?.status) searchParams.set('status', params.status);
+  if (params?.search) searchParams.set('search', params.search);
   if (params?.from) searchParams.set('date_from', params.from);
   if (params?.to) searchParams.set('date_to', params.to);
 
@@ -202,6 +207,7 @@ export async function getDomesticTransactions(
     movement_type?: 'IN' | 'OUT';
     session?: 'MORNING' | 'AFTERNOON';
     status?: string;
+    search?: string;
     from?: string;
     to?: string;
   },
@@ -213,6 +219,7 @@ export async function getDomesticTransactions(
   if (params?.movement_type) searchParams.set('movement_type', params.movement_type);
   if (params?.session) searchParams.set('session', params.session);
   if (params?.status) searchParams.set('status', params.status);
+  if (params?.search) searchParams.set('search', params.search);
   if (params?.from) searchParams.set('date_from', params.from);
   if (params?.to) searchParams.set('date_to', params.to);
 

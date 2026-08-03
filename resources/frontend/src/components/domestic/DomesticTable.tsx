@@ -64,13 +64,13 @@ export default function DomesticTable({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
                 <div>📅 {tx.date} ({tx.session === 'MORNING' || tx.session === 'morning' ? 'Pagi' : 'Sore'})</div>
                 <span style={{ fontWeight: 700, color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>
-                  {(tx.totalKg ?? tx.total_weight_kg ?? 0).toFixed(1)} kg
+                  {Number(tx.totalKg ?? tx.total_weight_kg ?? 0).toFixed(1)} kg
                 </span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: tokens.textMuted }}>
-                <div>🌱 Organik: {(tx.organicKg ?? tx.organic_weight_kg ?? 0).toFixed(1)} kg</div>
-                <div>📦 Anorganik: {(tx.inorganicKg ?? tx.inorganic_weight_kg ?? 0).toFixed(1)} kg</div>
+                <div>🌱 Organik: {Number(tx.organicKg ?? tx.organic_weight_kg ?? 0).toFixed(1)} kg</div>
+                <div>📦 Anorganik: {Number(tx.inorganicKg ?? tx.inorganic_weight_kg ?? 0).toFixed(1)} kg</div>
                 <div>👤 PIC: {tx.picName || tx.pic_name || 'Petugas'}</div>
               </div>
 
@@ -116,9 +116,9 @@ export default function DomesticTable({
                       {(tx.session === 'MORNING' || tx.session === 'morning') ? 'Pagi' : 'Sore'}
                     </div>
                   </td>
-                  <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{(tx.organicKg ?? tx.organic_weight_kg ?? 0).toFixed(1)} kg</td>
-                  <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{(tx.inorganicKg ?? tx.inorganic_weight_kg ?? 0).toFixed(1)} kg</td>
-                  <td style={{ padding: '8px 10px', color: tokens.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{(tx.totalKg ?? tx.total_weight_kg ?? 0).toFixed(1)} kg</td>
+                  <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{Number(tx.organicKg ?? tx.organic_weight_kg ?? 0).toFixed(1)} kg</td>
+                  <td style={{ padding: '8px 10px', color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>{Number(tx.inorganicKg ?? tx.inorganic_weight_kg ?? 0).toFixed(1)} kg</td>
+                  <td style={{ padding: '8px 10px', color: tokens.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{Number(tx.totalKg ?? tx.total_weight_kg ?? 0).toFixed(1)} kg</td>
                   <td style={{ padding: '8px 10px' }}>
                     <span style={{
                       fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 3,
