@@ -37,7 +37,7 @@ class B3Transaction extends Model
         'storage_deadline_at' => 'datetime',
         'weight_kg' => 'decimal:2',
         'remaining_weight_kg' => 'decimal:2',
-        'transaction_type' => 'string',
+        'transaction_type' => \App\Enums\WasteMovementType::class,
         'status' => 'string',
     ];
 

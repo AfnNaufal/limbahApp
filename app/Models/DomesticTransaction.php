@@ -53,10 +53,10 @@ class DomesticTransaction extends Model
     protected $casts = [
         'date' => 'date',
 
-        'movement_type' => 'string',
-        'session' => 'string',
-        'processing_method' => 'string',
-        'status' => 'string',
+        'movement_type' => \App\Enums\WasteMovementType::class,
+        'session' => \App\Enums\WasteSession::class,
+        'processing_method' => \App\Enums\ProcessingMethod::class,
+        'status' => \App\Enums\TransactionStatus::class,
 
         'domestic_residue_kg' => 'decimal:2',
         'leaf_waste_kg' => 'decimal:2',

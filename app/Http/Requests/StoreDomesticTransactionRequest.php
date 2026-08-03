@@ -29,11 +29,11 @@ class StoreDomesticTransactionRequest extends FormRequest
 
         return [
             'date' => ['required', 'date', 'before_or_equal:today'],
-            'movement_type' => ['required', Rule::in(['IN', 'OUT'])],
-            'session' => ['required_if:movement_type,IN', 'nullable', Rule::in(['MORNING', 'AFTERNOON'])],
-            'processing_method' => ['required_if:movement_type,OUT', 'nullable', Rule::in(['PROCESSED', 'LANDFILL'])],
+            'movement_type' => ['required', Rule::enum(\App\Enums\WasteMovementType::class)],
+            'session' => ['required_if:movement_type,IN', 'nullable', Rule::enum(\App\Enums\WasteSession::class)],
+            'processing_method' => ['required_if:movement_type,OUT', 'nullable', Rule::enum(\App\Enums\ProcessingMethod::class)],
             ...$detailRules,
-            'status' => ['required', Rule::in(['DRAFT', 'SUBMITTED', 'VERIFIED', 'REJECTED'])],
+            'status' => ['required', Rule::enum(\App\Enums\TransactionStatus::class)],
             'pic_name' => ['required', 'string', 'max:255'],
             'pic_phone' => ['nullable', 'string', 'max:20'],
             'notes' => ['nullable', 'string', 'max:1000'],
