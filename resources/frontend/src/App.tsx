@@ -3,6 +3,7 @@ import { AppProvider, useApp } from './context'
 import SplashScreen from './components/SplashScreen'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
+import MobileBottomNav from './components/MobileBottomNav'
 
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const B3Page = lazy(() => import('./components/B3Page'))
@@ -67,6 +68,8 @@ function MainLayout() {
           </Suspense>
         </main>
       </div>
+
+      <MobileBottomNav />
 
       <style>{`
         * { box-sizing: border-box; }
