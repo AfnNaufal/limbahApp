@@ -10,6 +10,8 @@ import {
   B3_TRANSACTIONS, MONTHLY_B3_IN, MONTHLY_B3_OUT,
   PIE_B3_IN, PIE_B3_OUT, STORAGE_ALERTS, NOTIFICATIONS,
 } from '../data'
+import EmptyState from './EmptyState'
+import SkeletonLoader from './SkeletonLoader'
 
 type TrendPeriod = 'weekly' | 'monthly' | 'yearly'
 
@@ -286,23 +288,42 @@ export default function B3Page() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
             {STORAGE_ALERTS.map((a) => {
               const isExceeded = a.urgency === 'exceeded'
+              const maxDays = 90
+              const daysInStorage = Math.max(0, maxDays - (a.storageDeadlineDays ?? 0))
               const color = isExceeded ? tokens.danger : tokens.warning
+              const pct = Math.min(100, Math.round((daysInStorage / maxDays) * 100))
+              const barColor = isExceeded ? tokens.danger : pct > 75 ? tokens.warning : tokens.success
+
               return (
                 <div key={a.id} style={{
                   background: `${color}10`, border: `1px solid ${color}40`,
                   borderRadius: tokens.radius, padding: '10px 14px', fontSize: 12,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                  display: 'flex', flexDirection: 'column', gap: 6,
+                  transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                  e.currentTarget.style.boxShadow = tokens.shadow
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
                 }}>
-                  <div>
-                    <div style={{ fontWeight: 600, color: tokens.text }}>{a.wasteName} ({a.wasteCode})</div>
-                    <div style={{ color: tokens.textMuted, fontSize: 11 }}>{a.weightKg} kg · Tersimpan {a.daysInStorage} hari</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 600, color: tokens.text }}>{a.type} ({a.wasteCode})</div>
+                      <div style={{ color: tokens.textMuted, fontSize: 11 }}>{a.amountKg} kg · Tersimpan {daysInStorage}/{maxDays} hari ({pct}%)</div>
+                    </div>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 3,
+                      background: color, color: '#fff', whiteSpace: 'nowrap',
+                    }}>
+                      {isExceeded ? `${daysInStorage - maxDays} HR LEWAT` : `${maxDays - daysInStorage} HR LAGI`}
+                    </span>
                   </div>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 3,
-                    background: color, color: '#fff', whiteSpace: 'nowrap',
-                  }}>
-                    {isExceeded ? `${a.daysInStorage - a.maxDays} HR LEWAT` : `${a.maxDays - a.daysInStorage} HR LAGI`}
-                  </span>
+                  <div style={{ height: 5, background: `${color}25`, borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 3, transition: 'width 0.4s ease' }} />
+                  </div>
                 </div>
               )
             })}
@@ -424,11 +445,14 @@ export default function B3Page() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: tokens.textMuted, fontSize: 14 }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
-            {t('emptyState')}
-          </div>
+        {loading && !apiData ? (
+          <SkeletonLoader rows={6} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            title="Tidak Ada Transaksi B3"
+            message={search ? `Tidak ada data transaksi B3 yang cocok dengan kata kunci "${search}".` : 'Belum ada transaksi Limbah B3 yang tersimpan untuk filter saat ini.'}
+            icon={search ? 'search' : 'empty'}
+          />
         ) : (
           <>
             {isMobile ? (

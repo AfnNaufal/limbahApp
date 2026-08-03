@@ -10,6 +10,8 @@ import {
   DOMESTIC_TRANSACTIONS, MONTHLY_DOM_MORNING, MONTHLY_DOM_AFTERNOON,
   PIE_DOM_MORNING, PIE_DOM_AFTERNOON, NOTIFICATIONS,
 } from '../data'
+import EmptyState from './EmptyState'
+import SkeletonLoader from './SkeletonLoader'
 
 type TrendPeriod = 'weekly' | 'monthly' | 'yearly'
 
@@ -345,11 +347,14 @@ export default function DomesticPage() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: tokens.textMuted, fontSize: 14 }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
-            {t('emptyState')}
-          </div>
+        {loading && !apiData ? (
+          <SkeletonLoader rows={6} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            title="Tidak Ada Transaksi Domestik"
+            message={search ? `Tidak ada data transaksi Domestik yang cocok dengan kata kunci "${search}".` : 'Belum ada transaksi Limbah Domestik yang tersimpan untuk filter saat ini.'}
+            icon={search ? 'search' : 'empty'}
+          />
         ) : (
           <>
             {isMobile ? (

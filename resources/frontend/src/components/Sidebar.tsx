@@ -6,10 +6,10 @@ import { useIsMobile } from '../hooks/useMediaQuery'
 type TopLevelIconId = 'dashboard' | 'b3' | 'domestic' | 'settings'
 
 const INPUT_DATA_CHILDREN: { id: PageId; key: string }[] = [
-  { id: 'b3-in', key: 'masuk limbah b3  ' },
-  { id: 'b3-out', key: 'keluar limbah b3' },
-  { id: 'waste-in', key: 'limbah domestik masuk' },
-  { id: 'waste-out', key: 'limbah domestik keluar' },
+  { id: 'b3-in', key: 'menuB3In' },
+  { id: 'b3-out', key: 'menuB3Out' },
+  { id: 'waste-in', key: 'menuWasteIn' },
+  { id: 'waste-out', key: 'menuWasteOut' },
 ]
 
 const INPUT_DATA_IDS: PageId[] = INPUT_DATA_CHILDREN.map((c) => c.id)
@@ -22,7 +22,7 @@ const NAV_ITEMS: NavEntry[] = [
   { type: 'page', id: 'dashboard', key: 'dashboard' },
   { type: 'page', id: 'b3', key: 'b3Waste' },
   { type: 'page', id: 'domestic', key: 'domesticWaste' },
-  { type: 'group', key: 'inputData', children: INPUT_DATA_CHILDREN },
+  { type: 'group', key: 'inputDataGroup', children: INPUT_DATA_CHILDREN },
   { type: 'page', id: 'settings', key: 'settings' },
 ]
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp, getPeriodDateRange, type PageId } from '../context'
 import { NOTIFICATIONS, B3_TRANSACTIONS, DOMESTIC_TRANSACTIONS } from '../data'
-import { getNotifications, getB3Transactions, getDomesticTransactions } from '../api'
+import { getNotifications, getB3Transactions, getDomesticTransactions, markNotificationAsRead } from '../api'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { exportToCSV, exportToPrintPDF } from '../utils/exportUtils'
 
@@ -17,7 +17,7 @@ const PAGE_TITLES: Record<PageId, string> = {
 }
 
 interface DisplayNotification {
-  id: number
+  id: number | string
   type: string
   title: string
   message: string

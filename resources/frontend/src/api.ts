@@ -334,7 +334,7 @@ export async function getNotifications(params?: {
   return res?.data ?? [];
 }
 
-export async function markNotificationAsRead(id: number): Promise<ApiNotification> {
+export async function markNotificationAsRead(id: number | string): Promise<ApiNotification> {
   const res = await postApi<{ data: ApiNotification } | ApiNotification, {}>(
     `/api/notifications/${id}/read`,
     {},
