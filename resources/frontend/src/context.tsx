@@ -3,6 +3,9 @@ import type { ThemeId, ModeId, ThemeTokens } from './theme'
 import { getTokens } from './theme'
 import type { LangId } from './i18n'
 import { t as translate } from './i18n'
+import { apiMe, getSystemSettings, type AuthUser } from './api'
+
+import UnsavedChangesModal from './components/UnsavedChangesModal'
 
 export type PageId = 'dashboard' | 'b3' | 'domestic' | 'b3-in' | 'b3-out' | 'waste-in' | 'waste-out' | 'settings'
 
@@ -16,6 +19,11 @@ interface AppCtx {
   search: string
   year: string
   periodFilter: string
+  user: AuthUser | null
+  token: string | null
+  isLoadingAuth: boolean
+  login: (token: string, user: AuthUser) => void
+  logout: () => Promise<void>
   setTheme: (t: ThemeId) => void
   setMode: (m: ModeId) => void
   setLang: (l: LangId) => void
@@ -26,6 +34,9 @@ interface AppCtx {
   setPeriodFilter: (p: string) => void
   t: (key: string, fallback?: string) => string
   isRTL: boolean
+  hasUnsavedChanges: boolean
+  setHasUnsavedChanges: (v: boolean) => void
+  registerUnsavedHandlers: (saveFn: () => Promise<boolean | void>, discardFn: () => void) => void
 }
 
 const Ctx = createContext<AppCtx>(null as never)
@@ -56,21 +67,142 @@ export function getPeriodDateRange(yearStr: string, periodStr: string): { from: 
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<ThemeId>('corporate')
-  const [mode, setMode] = useState<ModeId>('light')
-  const [lang, setLang] = useState<LangId>('id')
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('auth_token'))
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true)
+
+  const [theme, setThemeState] = useState<ThemeId>(() => (localStorage.getItem('app_theme') as ThemeId) || 'corporate')
+  const [mode, setModeState] = useState<ModeId>(() => (localStorage.getItem('app_mode') as ModeId) || 'light')
+  const [lang, setLangState] = useState<LangId>(() => (localStorage.getItem('app_lang') as LangId) || 'id')
   const [page, setPageState] = useState<PageId>(getPageFromHash)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [search, setSearch] = useState('')
   const [year, setYear] = useState(() => new Date().getFullYear().toString())
   const [periodFilter, setPeriodFilter] = useState('all')
 
+  const login = (newToken: string, userData: AuthUser) => {
+    localStorage.setItem('auth_token', newToken)
+    setToken(newToken)
+    setUser(userData)
+  }
+
+  const logout = async () => {
+    localStorage.removeItem('auth_token')
+    setToken(null)
+    setUser(null)
+  }
+
+  useEffect(() => {
+    if (token) {
+      apiMe()
+        .then((res) => {
+          if (res?.user) {
+            setUser(res.user)
+          } else {
+            logout()
+          }
+        })
+        .catch(() => {
+          logout()
+        })
+        .finally(() => {
+          setIsLoadingAuth(false)
+        })
+    } else {
+      setIsLoadingAuth(false)
+    }
+  }, [token])
+
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [pendingPage, setPendingPage] = useState<PageId | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveFnRef, setSaveFnRef] = useState<(() => Promise<boolean | void>) | null>(null)
+  const [discardFnRef, setDiscardFnRef] = useState<(() => void) | null>(null)
+
+  const registerUnsavedHandlers = (saveFn: () => Promise<boolean | void>, discardFn: () => void) => {
+    setSaveFnRef(() => saveFn)
+    setDiscardFnRef(() => discardFn)
+  }
+
+  const setTheme = (t: ThemeId) => {
+    setThemeState(t)
+    localStorage.setItem('app_theme', t)
+  }
+
+  const setMode = (m: ModeId) => {
+    setModeState(m)
+    localStorage.setItem('app_mode', m)
+  }
+
+  const setLang = (l: LangId) => {
+    setLangState(l)
+    localStorage.setItem('app_lang', l)
+  }
+
   const setPage = (p: PageId) => {
+    if (hasUnsavedChanges && p !== page) {
+      setPendingPage(p)
+      return
+    }
+
     setPageState(p)
     if (window.location.hash !== `#${p}`) {
       window.location.hash = p
     }
   }
+
+  const handleSaveAndContinue = async () => {
+    if (!pendingPage) return
+    setIsSaving(true)
+    try {
+      if (saveFnRef) {
+        await saveFnRef()
+      }
+    } catch {
+      // Non-blocking
+    } finally {
+      setIsSaving(false)
+      setHasUnsavedChanges(false)
+      const target = pendingPage
+      setPendingPage(null)
+      setPageState(target)
+      if (window.location.hash !== `#${target}`) {
+        window.location.hash = target
+      }
+    }
+  }
+
+  const handleDiscardAndContinue = () => {
+    if (!pendingPage) return
+    try {
+      if (discardFnRef) {
+        discardFnRef()
+      }
+    } catch {
+      // Non-blocking
+    }
+    setHasUnsavedChanges(false)
+    const target = pendingPage
+    setPendingPage(null)
+    setPageState(target)
+    if (window.location.hash !== `#${target}`) {
+      window.location.hash = target
+    }
+  }
+
+  const handleCancelNavigation = () => {
+    setPendingPage(null)
+  }
+
+  useEffect(() => {
+    getSystemSettings()
+      .then((data) => {
+        if (data.theme) setTheme(data.theme as ThemeId)
+        if (data.mode) setMode(data.mode as ModeId)
+        if (data.lang) setLang(data.lang as LangId)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -100,6 +232,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         search,
         year,
         periodFilter,
+        user,
+        token,
+        isLoadingAuth,
+        login,
+        logout,
         setTheme,
         setMode,
         setLang,
@@ -110,9 +247,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setPeriodFilter,
         t: tFn,
         isRTL,
+        hasUnsavedChanges,
+        setHasUnsavedChanges,
+        registerUnsavedHandlers,
       }}
     >
       {children}
+      <UnsavedChangesModal
+        isOpen={!!pendingPage}
+        tokens={tokens}
+        isSaving={isSaving}
+        onSaveAndContinue={handleSaveAndContinue}
+        onDiscardAndContinue={handleDiscardAndContinue}
+        onCancel={handleCancelNavigation}
+      />
     </Ctx.Provider>
   )
 }

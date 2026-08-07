@@ -7,11 +7,15 @@ use App\Models\DomesticTransaction;
 use App\Models\WasteCategory;
 use Tests\TestCase;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 class ApiPhase1Test extends TestCase
 {
+    use RefreshDatabase;
+
+    protected $seed = true;
     /**
      * Test waste categories endpoint
      */

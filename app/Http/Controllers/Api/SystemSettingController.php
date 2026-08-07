@@ -26,7 +26,7 @@ class SystemSettingController
      */
     public function update(Request $request): JsonResponse
     {
-        $payload = $request->json()->all();
+        $payload = $request->all();
 
         foreach ($payload as $key => $value) {
             SystemSetting::set($key, is_array($value) ? json_encode($value) : (string) $value);

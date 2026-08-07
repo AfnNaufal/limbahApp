@@ -5,6 +5,8 @@ import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import MobileBottomNav from './components/MobileBottomNav'
 
+import LoginPage from './components/LoginPage'
+
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const B3Page = lazy(() => import('./components/B3Page'))
 const DomesticPage = lazy(() => import('./components/DomesticPage'))
@@ -97,6 +99,7 @@ function App() {
 
   useEffect(() => {
     setMounted(true)
+    document.title = 'Sistem Pemantauan Limbah'
   }, [])
 
   if (!mounted) return null
@@ -109,6 +112,20 @@ function App() {
 }
 
 function AppInner({ splashDone, setSplashDone }: { splashDone: boolean; setSplashDone: (v: boolean) => void }) {
+  const { user, isLoadingAuth } = useApp()
+
+  if (isLoadingAuth) {
+    return (
+      <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', color: '#ffffff', fontSize: '13px' }}>
+        Memuat sesi...
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <LoginPage />
+  }
+
   return (
     <>
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}

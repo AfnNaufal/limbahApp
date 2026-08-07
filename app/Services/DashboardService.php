@@ -179,51 +179,54 @@ class DashboardService
      */
     public function getMonthlyTrends(int $months = 12, ?int $year = null): array
     {
+        $startDate = $year ? Carbon::create($year, 1, 1)->startOfDay() : now()->subMonths($months - 1)->startOfMonth()->startOfDay();
+        $endDate = $year ? Carbon::create($year, 12, 31)->endOfDay() : now()->endOfMonth()->endOfDay();
+
+        // Query B3 transactions grouped by YYYY-MM
+        $b3Stats = B3Transaction::selectRaw("
+                DATE_FORMAT(date, '%Y-%m') as ym,
+                SUM(CASE WHEN transaction_type = 'IN' THEN weight_kg ELSE 0 END) as in_weight,
+                SUM(CASE WHEN transaction_type = 'OUT' THEN weight_kg ELSE 0 END) as out_weight
+            ")
+            ->whereBetween('date', [$startDate, $endDate])
+            ->groupBy('ym')
+            ->get()
+            ->keyBy('ym');
+
+        // Query Domestic transactions grouped by YYYY-MM
+        $domStats = DomesticTransaction::selectRaw("
+                DATE_FORMAT(date, '%Y-%m') as ym,
+                SUM(organic_weight_kg) as organic_weight,
+                SUM(inorganic_weight_kg) as inorganic_weight,
+                SUM(total_weight_kg) as total_weight
+            ")
+            ->whereBetween('date', [$startDate, $endDate])
+            ->groupBy('ym')
+            ->get()
+            ->keyBy('ym');
+
         $trends = [];
+        $totalSteps = $year ? 12 : $months;
 
-        if ($year) {
-            for ($month = 1; $month <= 12; $month++) {
-                $date = Carbon::create($year, $month, 1);
-                $from = $date->clone()->startOfMonth();
-                $to = $date->clone()->endOfMonth();
+        for ($i = 0; $i < $totalSteps; $i++) {
+            $date = $year 
+                ? Carbon::create($year, $i + 1, 1)
+                : now()->subMonths($months - 1 - $i);
 
-                $b3InWeight = (float) B3Transaction::byDateRange($from, $to)->where('transaction_type', 'IN')->sum('weight_kg');
-                $b3OutWeight = (float) B3Transaction::byDateRange($from, $to)->where('transaction_type', 'OUT')->sum('weight_kg');
+            $ym = $date->format('Y-m');
+            $b3Row = $b3Stats->get($ym);
+            $domRow = $domStats->get($ym);
 
-                $domOrganicWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('organic_weight_kg');
-                $domInorganicWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('inorganic_weight_kg');
-                $domTotalWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('total_weight_kg');
+            $b3InWeight = (float) ($b3Row?->in_weight ?? 0);
+            $b3OutWeight = (float) ($b3Row?->out_weight ?? 0);
 
-                $trends[] = [
-                    'month' => $date->format('Y-m'),
-                    'month_name' => $date->format('M'),
-                    'b3_in_weight_kg' => $b3InWeight,
-                    'b3_out_weight_kg' => $b3OutWeight,
-                    'b3_weight_kg' => $b3InWeight + $b3OutWeight,
-                    'domestic_organic_kg' => $domOrganicWeight,
-                    'domestic_inorganic_kg' => $domInorganicWeight,
-                    'domestic_weight_kg' => $domTotalWeight > 0 ? $domTotalWeight : ($domOrganicWeight + $domInorganicWeight),
-                ];
-            }
-
-            return $trends;
-        }
-
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $date = now()->subMonths($i);
-            $from = $date->clone()->startOfMonth();
-            $to = $date->clone()->endOfMonth();
-
-            $b3InWeight = (float) B3Transaction::byDateRange($from, $to)->where('transaction_type', 'IN')->sum('weight_kg');
-            $b3OutWeight = (float) B3Transaction::byDateRange($from, $to)->where('transaction_type', 'OUT')->sum('weight_kg');
-
-            $domOrganicWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('organic_weight_kg');
-            $domInorganicWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('inorganic_weight_kg');
-            $domTotalWeight = (float) DomesticTransaction::byDateRange($from, $to)->sum('total_weight_kg');
+            $domOrganicWeight = (float) ($domRow?->organic_weight ?? 0);
+            $domInorganicWeight = (float) ($domRow?->inorganic_weight ?? 0);
+            $domTotalWeight = (float) ($domRow?->total_weight ?? 0);
 
             $trends[] = [
-                'month' => $date->format('Y-m'),
-                'month_name' => $date->format('M Y'),
+                'month' => $ym,
+                'month_name' => $year ? $date->format('M') : $date->format('M Y'),
                 'b3_in_weight_kg' => $b3InWeight,
                 'b3_out_weight_kg' => $b3OutWeight,
                 'b3_weight_kg' => $b3InWeight + $b3OutWeight,

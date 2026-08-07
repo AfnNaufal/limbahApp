@@ -3,6 +3,17 @@ type ApiErrorBody = {
   errors?: Record<string, string[]>;
 };
 
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('auth_token');
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => null);
 
@@ -26,9 +37,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 export async function getApi<T>(url: string): Promise<T> {
   const response = await fetch(url, {
     method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
+    headers: getAuthHeaders(),
   });
 
   return parseResponse<T>(response);
@@ -41,7 +50,7 @@ export async function postApi<TResponse, TPayload>(
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      Accept: 'application/json',
+      ...getAuthHeaders(),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -57,7 +66,7 @@ export async function putApi<TResponse, TPayload>(
   const response = await fetch(url, {
     method: 'PUT',
     headers: {
-      Accept: 'application/json',
+      ...getAuthHeaders(),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -69,9 +78,7 @@ export async function putApi<TResponse, TPayload>(
 export async function deleteApi<TResponse = void>(url: string): Promise<TResponse> {
   const response = await fetch(url, {
     method: 'DELETE',
-    headers: {
-      Accept: 'application/json',
-    },
+    headers: getAuthHeaders(),
   });
 
   if (response.status === 204) {
@@ -79,6 +86,43 @@ export async function deleteApi<TResponse = void>(url: string): Promise<TRespons
   }
 
   return parseResponse<TResponse>(response);
+}
+
+/* =========================================================
+   AUTHENTICATION API
+   ========================================================= */
+
+export type AuthUser = {
+  id: number;
+  name: string;
+  email: string;
+  email_verified_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AuthResponse = {
+  status: string;
+  message: string;
+  user: AuthUser;
+  access_token: string;
+  token_type: string;
+};
+
+export async function apiLogin(payload: { email: string; password: string }): Promise<AuthResponse> {
+  return postApi<AuthResponse, typeof payload>('/api/login', payload);
+}
+
+export async function apiRegister(payload: { name: string; email: string; password: string }): Promise<AuthResponse> {
+  return postApi<AuthResponse, typeof payload>('/api/register', payload);
+}
+
+export async function apiLogout(): Promise<{ status: string; message: string }> {
+  return postApi<{ status: string; message: string }, {}>('/api/logout', {});
+}
+
+export async function apiMe(): Promise<{ status: string; user: AuthUser }> {
+  return getApi<{ status: string; user: AuthUser }>('/api/me');
 }
 
 /* =========================================================

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context'
 import { THEMES, type ThemeId, type ModeId } from '../theme'
-import { LANGUAGES } from '../i18n'
+import { LANGUAGES, type LangId } from '../i18n'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { getSystemSettings, updateSystemSettings } from '../api'
 
@@ -59,24 +59,63 @@ const THEME_PREVIEWS: Record<ThemeId, { bg: string; text: string; accent: string
 }
 
 export default function SettingsPage() {
-  const { tokens, theme, mode, lang, setTheme, setMode, setLang, t } = useApp()
+  const { tokens, theme, mode, lang, setTheme, setMode, setLang, t, setHasUnsavedChanges, registerUnsavedHandlers } = useApp()
   const [notifEnabled, setNotifEnabled] = useState(true)
   const [notifB3, setNotifB3] = useState(true)
   const [notifDomestic, setNotifDomestic] = useState(true)
   const [saved, setSaved] = useState(false)
   const isMobile = useIsMobile()
 
+  // Track initial/saved settings
+  const [savedRef, setSavedRef] = useState({
+    theme: theme,
+    mode: mode,
+    lang: lang,
+    notifEnabled: true,
+    notifB3: true,
+    notifDomestic: true,
+  })
+
   useEffect(() => {
     getSystemSettings()
       .then((data) => {
-        if (data.notifEnabled !== undefined) setNotifEnabled(data.notifEnabled === 'true')
-        if (data.notifB3 !== undefined) setNotifB3(data.notifB3 === 'true')
-        if (data.notifDomestic !== undefined) setNotifDomestic(data.notifDomestic === 'true')
+        const loadedNotif = data.notifEnabled !== undefined ? data.notifEnabled === 'true' : true
+        const loadedB3 = data.notifB3 !== undefined ? data.notifB3 === 'true' : true
+        const loadedDom = data.notifDomestic !== undefined ? data.notifDomestic === 'true' : true
+        const loadedTheme = (data.theme as ThemeId) || theme
+        const loadedMode = (data.mode as ModeId) || mode
+        const loadedLang = (data.lang as LangId) || lang
+
+        setNotifEnabled(loadedNotif)
+        setNotifB3(loadedB3)
+        setNotifDomestic(loadedDom)
+        if (data.theme && data.theme !== theme) setTheme(data.theme as any)
+        if (data.mode && data.mode !== mode) setMode(data.mode as any)
+        if (data.lang && data.lang !== lang) setLang(data.lang as any)
+
+        setSavedRef({
+          theme: loadedTheme,
+          mode: loadedMode,
+          lang: loadedLang,
+          notifEnabled: loadedNotif,
+          notifB3: loadedB3,
+          notifDomestic: loadedDom,
+        })
       })
-      .catch(() => {
-        // Safe default fallback
-      })
+      .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const isDirty =
+      theme !== savedRef.theme ||
+      mode !== savedRef.mode ||
+      lang !== savedRef.lang ||
+      notifEnabled !== savedRef.notifEnabled ||
+      notifB3 !== savedRef.notifB3 ||
+      notifDomestic !== savedRef.notifDomestic
+
+    setHasUnsavedChanges(isDirty)
+  }, [theme, mode, lang, notifEnabled, notifB3, notifDomestic, savedRef])
 
   const handleSave = async () => {
     try {
@@ -91,9 +130,31 @@ export default function SettingsPage() {
     } catch {
       // Non-blocking fallback
     }
+    setSavedRef({ theme, mode, lang, notifEnabled, notifB3, notifDomestic })
+    setHasUnsavedChanges(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
+
+  const handleDiscard = () => {
+    setTheme(savedRef.theme as any)
+    setMode(savedRef.mode as any)
+    setLang(savedRef.lang as any)
+    setNotifEnabled(savedRef.notifEnabled)
+    setNotifB3(savedRef.notifB3)
+    setNotifDomestic(savedRef.notifDomestic)
+    setHasUnsavedChanges(false)
+  }
+
+  useEffect(() => {
+    registerUnsavedHandlers(handleSave, handleDiscard)
+  }, [theme, mode, lang, notifEnabled, notifB3, notifDomestic, savedRef])
+
+  useEffect(() => {
+    return () => {
+      setHasUnsavedChanges(false)
+    }
+  }, [])
 
   const currentThemeDef = THEMES.find((th) => th.id === theme)
   const modesAvailable: { id: ModeId; label: string }[] = currentThemeDef?.alwaysDark
@@ -105,7 +166,7 @@ export default function SettingsPage() {
       ]
 
   return (
-    <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
+    <div style={{ padding: isMobile ? '16px 16px 90px 16px' : '20px 24px 40px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, maxWidth: 1000 }}>
 
         {/* Theme */}
@@ -265,12 +326,12 @@ export default function SettingsPage() {
         </Section>
       </div>
 
-      {/* Save button */}
-      <div style={{ marginTop: 20, display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', maxWidth: 1000 }}>
+      {/* Standard Save button at end of content */}
+      <div style={{ marginTop: 24, display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', maxWidth: 1000 }}>
         <button
           onClick={handleSave}
           style={{
-            padding: '10px 28px',
+            padding: '12px 28px',
             width: isMobile ? '100%' : undefined,
             background: saved ? tokens.success : tokens.primary,
             color: tokens.textInverse,
