@@ -7,7 +7,7 @@ import { apiMe, getSystemSettings, type AuthUser } from './api'
 
 import UnsavedChangesModal from './components/UnsavedChangesModal'
 
-export type PageId = 'dashboard' | 'b3' | 'domestic' | 'b3-in' | 'b3-out' | 'waste-in' | 'waste-out' | 'settings'
+export type PageId = 'home' | 'dashboard' | 'analytics' | 'b3' | 'domestic' | 'b3-in' | 'b3-out' | 'waste-in' | 'waste-out' | 'settings'
 
 interface AppCtx {
   theme: ThemeId
@@ -41,11 +41,13 @@ interface AppCtx {
 
 const Ctx = createContext<AppCtx>(null as never)
 
-const VALID_PAGES: PageId[] = ['dashboard', 'b3', 'domestic', 'b3-in', 'b3-out', 'waste-in', 'waste-out', 'settings']
+const VALID_PAGES: PageId[] = ['home', 'dashboard', 'analytics', 'b3', 'domestic', 'b3-in', 'b3-out', 'waste-in', 'waste-out', 'settings']
 
 function getPageFromHash(): PageId {
   const hash = window.location.hash.replace('#', '')
-  return VALID_PAGES.includes(hash as PageId) ? (hash as PageId) : 'dashboard'
+  if (hash === 'analytics' || hash === 'dashboard') return 'analytics'
+  if (hash === 'home' || hash === '') return 'home'
+  return VALID_PAGES.includes(hash as PageId) ? (hash as PageId) : 'home'
 }
 
 export function getPeriodDateRange(yearStr: string, periodStr: string): { from: string; to: string } {

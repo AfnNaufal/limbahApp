@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { AppProvider, useApp } from './context'
+import { useIsMobile } from './hooks/useMediaQuery'
 import SplashScreen from './components/SplashScreen'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -7,6 +8,7 @@ import MobileBottomNav from './components/MobileBottomNav'
 
 import LoginPage from './components/LoginPage'
 
+const HomePage = lazy(() => import('./components/HomePage'))
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const B3Page = lazy(() => import('./components/B3Page'))
 const DomesticPage = lazy(() => import('./components/DomesticPage'))
@@ -18,6 +20,7 @@ const InputDomesticOutgoingPage = lazy(() => import('./components/InputDomesticO
 
 function MainLayout() {
   const { tokens, page, isRTL, theme } = useApp()
+  const isMobile = useIsMobile()
 
   const isGrad = tokens.bg.includes('gradient') || tokens.bg.includes('linear')
   const isNight = theme === 'nightcity'
@@ -53,13 +56,23 @@ function MainLayout() {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
         <Header />
-        <main style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <main
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 16px))' : '0px',
+          }}
+        >
           <Suspense fallback={
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: tokens.textMuted, fontSize: 13 }}>
               Memuat...
             </div>
           }>
-            {page === 'dashboard' && <Dashboard />}
+            {page === 'home' && <HomePage />}
+            {page === 'analytics' && <Dashboard />}
+            {page === 'dashboard' && <HomePage />}
             {page === 'b3' && <B3Page />}
             {page === 'domestic' && <DomesticPage />}
             {page === 'b3-in' && <InputB3IncomingPage />}

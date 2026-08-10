@@ -15,6 +15,7 @@ import SkeletonLoader from './SkeletonLoader'
 import B3StorageAlerts from './b3/B3StorageAlerts'
 import B3FilterBar from './b3/B3FilterBar'
 import B3Table from './b3/B3Table'
+import B3WasteSummary from './b3/B3WasteSummary'
 import B3EditModal from './b3/B3EditModal'
 import B3DeleteModal from './b3/B3DeleteModal'
 
@@ -30,6 +31,7 @@ const YEARLY_DATA = [
 
 export default function B3Page() {
   const { tokens, t, theme, search, setSearch, year, periodFilter } = useApp()
+  const [activeTab, setActiveTab] = useState<'summary' | 'transactions'>('summary')
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
   const [filterCat, setFilterCat] = useState<'all' | 'b3in' | 'b3out'>('all')
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'processed' | 'disposed'>('all')
@@ -75,8 +77,6 @@ export default function B3Page() {
     getB3Transactions({
       page: 1,
       per_page: 1000,
-      type: filterCat === 'all' ? undefined : filterCat === 'b3in' ? 'IN' : 'OUT',
-      status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
       search: search || undefined,
       from: filterFrom || periodRange.from,
       to: filterTo || periodRange.to,
@@ -88,7 +88,11 @@ export default function B3Page() {
             rawId: item.id,
             date: item.date,
             category: item.transaction_type === 'IN' ? 'b3in' : 'b3out',
+            transaction_type: item.transaction_type,
             type: item.waste_name,
+            waste_name: item.waste_name,
+            wasteCode: item.waste_code,
+            waste_code: item.waste_code,
             weightKg: Number(item.weight_kg ?? 0),
             amountKg: Number(item.weight_kg ?? 0),
             status: (item.status || 'pending').toLowerCase(),
@@ -98,6 +102,7 @@ export default function B3Page() {
             manifest: item.manifest_number || '-',
             scalePhotoUrl: item.scale_photo_url || null,
             notes: item.notes || '',
+            storage_deadline_at: item.storage_deadline_at,
           }))
           setApiData(mapped)
         }
@@ -111,7 +116,7 @@ export default function B3Page() {
 
   useEffect(() => {
     fetchData()
-  }, [filterCat, filterStatus, filterFrom, filterTo, search, year, periodFilter])
+  }, [filterFrom, filterTo, search, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)
@@ -163,26 +168,35 @@ export default function B3Page() {
   const transactionsList = apiData ?? B3_TRANSACTIONS
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
-  const filtered = useMemo(() => {
+  // Transactions within the active period/search (complete IN & OUT for charts & summary)
+  const periodTransactions = useMemo(() => {
     const periodRange = getPeriodDateRange(year, periodFilter)
     return transactionsList.filter((tx) => {
-      if (filterCat !== 'all' && tx.category !== filterCat) return false
-      if (filterStatus !== 'all' && tx.status !== filterStatus) return false
       if (filterFrom ? tx.date < filterFrom : tx.date < periodRange.from) return false
       if (filterTo ? tx.date > filterTo : tx.date > periodRange.to) return false
       if (search) {
         const s = search.toLowerCase()
         return (
           String(tx.id).toLowerCase().includes(s) ||
-          String(tx.type).toLowerCase().includes(s) ||
-          String(tx.source).toLowerCase().includes(s) ||
-          String(tx.destination).toLowerCase().includes(s) ||
-          String(tx.manifest).toLowerCase().includes(s)
+          String(tx.type || tx.waste_name || '').toLowerCase().includes(s) ||
+          String(tx.source || '').toLowerCase().includes(s) ||
+          String(tx.destination || '').toLowerCase().includes(s) ||
+          String(tx.manifest || '').toLowerCase().includes(s) ||
+          String(tx.wasteCode || tx.waste_code || '').toLowerCase().includes(s)
         )
       }
       return true
     })
-  }, [transactionsList, filterCat, filterStatus, filterFrom, filterTo, search, year, periodFilter])
+  }, [transactionsList, filterFrom, filterTo, search, year, periodFilter])
+
+  // Filtered by specific category/status (for the raw logs table tab)
+  const filtered = useMemo(() => {
+    return periodTransactions.filter((tx) => {
+      if (filterCat !== 'all' && tx.category !== filterCat) return false
+      if (filterStatus !== 'all' && tx.status !== filterStatus) return false
+      return true
+    })
+  }, [periodTransactions, filterCat, filterStatus])
 
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -193,12 +207,12 @@ export default function B3Page() {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
       monthNames.forEach((m) => { monthMap[m] = { b3in: 0, b3out: 0 } })
 
-      filtered.forEach((tx) => {
+      periodTransactions.forEach((tx) => {
         if (!tx.date) return
         const monthIdx = new Date(tx.date).getMonth()
         const monthName = monthNames[monthIdx] || 'Jan'
         const weight = Number(tx.amountKg ?? tx.weightKg ?? 0)
-        if (tx.category === 'b3in') {
+        if (tx.category === 'b3in' || tx.transaction_type === 'IN') {
           monthMap[monthName].b3in += weight
         } else {
           monthMap[monthName].b3out += weight
@@ -217,13 +231,13 @@ export default function B3Page() {
       : trendPeriod === 'yearly'
         ? YEARLY_DATA
         : MONTHLY_B3_IN.slice(0, 4).map((d, i) => ({ name: `W${i + 1}`, b3in: d.value / 4, b3out: (MONTHLY_B3_OUT[i]?.value ?? 0) / 4 }))
-  }, [apiData, filtered, trendPeriod])
+  }, [apiData, periodTransactions, trendPeriod])
 
   const dynamicPieIn = useMemo(() => {
     if (apiData !== null) {
       const catMap: Record<string, number> = {}
-      filtered.filter((tx) => tx.category === 'b3in').forEach((tx) => {
-        const name = tx.type || 'Limbah B3'
+      periodTransactions.filter((tx) => tx.category === 'b3in' || tx.transaction_type === 'IN').forEach((tx) => {
+        const name = tx.type || tx.waste_name || 'Limbah B3'
         catMap[name] = (catMap[name] || 0) + Number(tx.amountKg ?? tx.weightKg ?? 0)
       })
       const entries = Object.entries(catMap).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
@@ -231,12 +245,12 @@ export default function B3Page() {
       return [{ name: 'Belum ada data', value: 0 }]
     }
     return PIE_B3_IN
-  }, [apiData, filtered])
+  }, [apiData, periodTransactions])
 
   const dynamicPieOut = useMemo(() => {
     if (apiData !== null) {
       const destMap: Record<string, number> = {}
-      filtered.filter((tx) => tx.category === 'b3out').forEach((tx) => {
+      periodTransactions.filter((tx) => tx.category === 'b3out' || tx.transaction_type === 'OUT').forEach((tx) => {
         const name = tx.destination || 'Pihak Ke-3'
         destMap[name] = (destMap[name] || 0) + Number(tx.amountKg ?? tx.weightKg ?? 0)
       })
@@ -245,7 +259,7 @@ export default function B3Page() {
       return [{ name: 'Belum ada data', value: 0 }]
     }
     return PIE_B3_OUT
-  }, [apiData, filtered])
+  }, [apiData, periodTransactions])
 
   const tooltipStyle = {
     contentStyle: {
@@ -357,25 +371,91 @@ export default function B3Page() {
         </div>
       </div>
 
-      {/* Table Section */}
+      {/* Table / Summary Section */}
       <div style={cardStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text }}>{t('allTransactions')} — B3</div>
-          <B3FilterBar
-            filterCat={filterCat}
-            setFilterCat={(val) => { setFilterCat(val); setPage(1) }}
-            filterStatus={filterStatus}
-            setFilterStatus={(val) => { setFilterStatus(val); setPage(1) }}
-            filterFrom={filterFrom}
-            setFilterFrom={(val) => { setFilterFrom(val); setPage(1) }}
-            filterTo={filterTo}
-            setFilterTo={(val) => { setFilterTo(val); setPage(1) }}
-            onReset={() => { setSearch(''); setFilterCat('all'); setFilterStatus('all'); setFilterFrom(''); setFilterTo(''); setPage(1) }}
-          />
+        {/* Navigation Tabs Header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+            flexWrap: 'wrap',
+            gap: 12,
+            borderBottom: `1px solid ${tokens.border}`,
+            paddingBottom: 12,
+          }}
+        >
+          {/* Left: Tab Switcher */}
+          <div style={{ display: 'flex', gap: 6, background: tokens.bgSecondary, padding: 3, borderRadius: '8px', border: `1px solid ${tokens.border}` }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('summary')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                background: activeTab === 'summary' ? tokens.primary : 'transparent',
+                color: activeTab === 'summary' ? tokens.textInverse : tokens.textMuted,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontFamily: tokens.fontFamily,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>📋</span> Ringkasan per Jenis (Neraca)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('transactions')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                background: activeTab === 'transactions' ? tokens.primary : 'transparent',
+                color: activeTab === 'transactions' ? tokens.textInverse : tokens.textMuted,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontFamily: tokens.fontFamily,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>📄</span> Riwayat Semua Log ({filtered.length})
+            </button>
+          </div>
+
+          {/* Right: Only show transaction filter bar when in transactions tab */}
+          {activeTab === 'transactions' && (
+            <B3FilterBar
+              filterCat={filterCat}
+              setFilterCat={(val) => { setFilterCat(val); setPage(1) }}
+              filterStatus={filterStatus}
+              setFilterStatus={(val) => { setFilterStatus(val); setPage(1) }}
+              filterFrom={filterFrom}
+              setFilterFrom={(val) => { setFilterFrom(val); setPage(1) }}
+              filterTo={filterTo}
+              setFilterTo={(val) => { setFilterTo(val); setPage(1) }}
+              onReset={() => { setSearch(''); setFilterCat('all'); setFilterStatus('all'); setFilterFrom(''); setFilterTo(''); setPage(1) }}
+            />
+          )}
         </div>
 
+        {/* Tab Content */}
         {loading && !apiData ? (
           <SkeletonLoader rows={6} />
+        ) : activeTab === 'summary' ? (
+          <B3WasteSummary
+            transactions={periodTransactions}
+            searchQuery={search}
+          />
         ) : filtered.length === 0 ? (
           <EmptyState
             title="Tidak Ada Transaksi B3"

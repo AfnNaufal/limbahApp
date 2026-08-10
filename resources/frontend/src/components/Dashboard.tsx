@@ -519,15 +519,64 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
-      {/* Live DB connection badge */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      {/* Analytics Page Top Header */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          marginBottom: 20,
+          background: tokens.card,
+          border: `1px solid ${tokens.cardBorder}`,
+          borderRadius: tokens.radius,
+          padding: '16px 20px',
+          boxShadow: tokens.shadow,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            type="button"
+            onClick={() => setPage('home')}
+            style={{
+              padding: '6px 12px',
+              background: tokens.bgSecondary,
+              color: tokens.text,
+              border: `1px solid ${tokens.border}`,
+              borderRadius: tokens.radius,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            <span>←</span> {t('home', 'Beranda')}
+          </button>
+
+          <div>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 16 : 18, fontWeight: 800, color: tokens.text }}>
+              {t('dashboardAnalytics', 'Dasbor Analitik & Grafik Pemantauan')}
+            </h1>
+            <span style={{ fontSize: 12, color: tokens.textMuted }}>
+              Rekapitulasi visualisasi neraca limbah B3 & Domestik periode tahun {year}
+            </span>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            width: 8, height: 8, borderRadius: '50%',
-            background: connectionColor,
-            display: 'inline-block',
-            boxShadow: `0 0 6px ${connectionColor}`,
-          }} />
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: connectionColor,
+              display: 'inline-block',
+              boxShadow: `0 0 6px ${connectionColor}`,
+            }}
+          />
           <span style={{ fontSize: 12, fontWeight: 600, color: apiError ? '#ef4444' : tokens.textMuted }}>
             {connectionText}
           </span>

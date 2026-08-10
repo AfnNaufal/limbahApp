@@ -14,6 +14,7 @@ import EmptyState from './EmptyState'
 import SkeletonLoader from './SkeletonLoader'
 import DomesticFilterBar from './domestic/DomesticFilterBar'
 import DomesticTable from './domestic/DomesticTable'
+import DomesticWasteSummary from './domestic/DomesticWasteSummary'
 import DomesticEditModal from './domestic/DomesticEditModal'
 import DomesticDeleteModal from './domestic/DomesticDeleteModal'
 
@@ -29,6 +30,7 @@ const YEARLY_DATA = [
 
 export default function DomesticPage() {
   const { tokens, t, theme, search, setSearch, year, periodFilter } = useApp()
+  const [activeTab, setActiveTab] = useState<'summary' | 'transactions'>('summary')
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
   const [filterMovement, setFilterMovement] = useState<'all' | 'IN' | 'OUT'>('all')
   const [filterSession, setFilterSession] = useState<'all' | 'morning' | 'afternoon'>('all')
@@ -151,23 +153,30 @@ export default function DomesticPage() {
   const transactionsList = apiData ?? DOMESTIC_TRANSACTIONS
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
-  const filtered = useMemo(() => {
+  const periodTransactions = useMemo(() => {
     const periodRange = getPeriodDateRange(year, periodFilter)
     return transactionsList.filter((tx) => {
-      if (filterSession !== 'all' && tx.session !== filterSession) return false
-      if (filterStatus !== 'all' && tx.status !== filterStatus) return false
       if (tx.date < periodRange.from || tx.date > periodRange.to) return false
       if (search) {
         const s = search.toLowerCase()
         return (
           String(tx.id).toLowerCase().includes(s) ||
-          String(tx.picName || tx.pic_name).toLowerCase().includes(s) ||
-          String(tx.notes).toLowerCase().includes(s)
+          String(tx.picName || tx.pic_name || '').toLowerCase().includes(s) ||
+          String(tx.notes || '').toLowerCase().includes(s)
         )
       }
       return true
     })
-  }, [transactionsList, filterSession, filterStatus, search, year, periodFilter])
+  }, [transactionsList, search, year, periodFilter])
+
+  const filtered = useMemo(() => {
+    return periodTransactions.filter((tx) => {
+      if (filterMovement !== 'all' && tx.movementType !== filterMovement) return false
+      if (filterSession !== 'all' && tx.session !== filterSession) return false
+      if (filterStatus !== 'all' && tx.status !== filterStatus) return false
+      return true
+    })
+  }, [periodTransactions, filterMovement, filterSession, filterStatus])
 
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -178,7 +187,7 @@ export default function DomesticPage() {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
       monthNames.forEach((m) => { monthMap[m] = { morning: 0, afternoon: 0 } })
 
-      filtered.forEach((tx) => {
+      periodTransactions.forEach((tx) => {
         if (!tx.date) return
         const monthIdx = new Date(tx.date).getMonth()
         const monthName = monthNames[monthIdx] || 'Jan'
@@ -202,7 +211,7 @@ export default function DomesticPage() {
       : trendPeriod === 'yearly'
         ? YEARLY_DATA
         : MONTHLY_DOM_MORNING.slice(0, 4).map((d, i) => ({ name: `W${i + 1}`, morning: d.value / 4, afternoon: (MONTHLY_DOM_AFTERNOON[i]?.value ?? 0) / 4 }))
-  }, [apiData, filtered, trendPeriod])
+  }, [apiData, periodTransactions, trendPeriod])
 
   const tooltipStyle = {
     contentStyle: {
@@ -311,23 +320,88 @@ export default function DomesticPage() {
         </div>
       </div>
 
-      {/* Table Section */}
+      {/* Table / Summary Section */}
       <div style={cardStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text }}>{t('allTransactions')} — Domestik</div>
-          <DomesticFilterBar
-            filterMovement={filterMovement}
-            setFilterMovement={(val) => { setFilterMovement(val); setPage(1) }}
-            filterSession={filterSession}
-            setFilterSession={(val) => { setFilterSession(val); setPage(1) }}
-            filterStatus={filterStatus}
-            setFilterStatus={(val) => { setFilterStatus(val); setPage(1) }}
-            onReset={() => { setSearch(''); setFilterMovement('all'); setFilterSession('all'); setFilterStatus('all'); setPage(1) }}
-          />
+        {/* Navigation Tabs Header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+            flexWrap: 'wrap',
+            gap: 12,
+            borderBottom: `1px solid ${tokens.border}`,
+            paddingBottom: 12,
+          }}
+        >
+          {/* Left: Tab Switcher */}
+          <div style={{ display: 'flex', gap: 6, background: tokens.bgSecondary, padding: 3, borderRadius: '8px', border: `1px solid ${tokens.border}` }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('summary')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                background: activeTab === 'summary' ? tokens.primary : 'transparent',
+                color: activeTab === 'summary' ? tokens.textInverse : tokens.textMuted,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontFamily: tokens.fontFamily,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>📋</span> Ringkasan per Kategori (Neraca)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('transactions')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                background: activeTab === 'transactions' ? tokens.primary : 'transparent',
+                color: activeTab === 'transactions' ? tokens.textInverse : tokens.textMuted,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontFamily: tokens.fontFamily,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>📄</span> Riwayat Semua Log ({filtered.length})
+            </button>
+          </div>
+
+          {/* Right: Filter Bar only when in transactions tab */}
+          {activeTab === 'transactions' && (
+            <DomesticFilterBar
+              filterMovement={filterMovement}
+              setFilterMovement={(val) => { setFilterMovement(val); setPage(1) }}
+              filterSession={filterSession}
+              setFilterSession={(val) => { setFilterSession(val); setPage(1) }}
+              filterStatus={filterStatus}
+              setFilterStatus={(val) => { setFilterStatus(val); setPage(1) }}
+              onReset={() => { setSearch(''); setFilterMovement('all'); setFilterSession('all'); setFilterStatus('all'); setPage(1) }}
+            />
+          )}
         </div>
 
+        {/* Tab Content */}
         {loading && !apiData ? (
           <SkeletonLoader rows={6} />
+        ) : activeTab === 'summary' ? (
+          <DomesticWasteSummary
+            transactions={periodTransactions}
+          />
         ) : filtered.length === 0 ? (
           <EmptyState
             title="Tidak Ada Transaksi Domestik"

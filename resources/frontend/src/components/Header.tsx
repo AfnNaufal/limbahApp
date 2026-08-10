@@ -6,7 +6,9 @@ import { useIsMobile } from '../hooks/useMediaQuery'
 import { exportToCSV, exportToPrintPDF } from '../utils/exportUtils'
 
 const PAGE_TITLES: Record<PageId, string> = {
-  dashboard: 'dashboard',
+  home: 'home',
+  dashboard: 'home',
+  analytics: 'dashboardAnalytics',
   b3: 'b3Waste',
   domestic: 'domesticWaste',
   'b3-in': 'menuB3In',

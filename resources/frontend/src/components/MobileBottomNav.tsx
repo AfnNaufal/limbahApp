@@ -189,42 +189,42 @@ export default function MobileBottomNav() {
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
-        {/* 1. Dasbor */}
+        {/* 1. Beranda */}
         <button
           type="button"
-          onClick={() => setPage('dashboard')}
+          onClick={() => setPage('home')}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-            color: page === 'dashboard' ? tokens.primary : tokens.textMuted,
+            color: page === 'home' ? tokens.primary : tokens.textMuted,
             width: 56, transition: 'color 0.15s',
           }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={page === 'dashboard' ? '2.5' : '1.8'}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={page === 'home' ? '2.5' : '1.8'}>
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span style={{ fontSize: 10, fontWeight: page === 'home' ? 700 : 500 }}>Beranda</span>
+        </button>
+
+        {/* 2. Dasbor Analitik */}
+        <button
+          type="button"
+          onClick={() => setPage('analytics')}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+            color: page === 'analytics' ? tokens.primary : tokens.textMuted,
+            width: 56, transition: 'color 0.15s',
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={page === 'analytics' ? '2.5' : '1.8'}>
             <rect x="3" y="3" width="7" height="9" rx="1" />
             <rect x="14" y="3" width="7" height="5" rx="1" />
             <rect x="14" y="12" width="7" height="9" rx="1" />
             <rect x="3" y="16" width="7" height="5" rx="1" />
           </svg>
-          <span style={{ fontSize: 10, fontWeight: page === 'dashboard' ? 700 : 500 }}>Dasbor</span>
-        </button>
-
-        {/* 2. Limbah B3 */}
-        <button
-          type="button"
-          onClick={() => setPage('b3')}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-            color: page === 'b3' ? tokens.primary : tokens.textMuted,
-            width: 56, transition: 'color 0.15s',
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={page === 'b3' ? '2.5' : '1.8'}>
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v8M8 12h8" />
-          </svg>
-          <span style={{ fontSize: 10, fontWeight: page === 'b3' ? 700 : 500 }}>B3</span>
+          <span style={{ fontSize: 10, fontWeight: page === 'analytics' ? 700 : 500 }}>Analitik</span>
         </button>
 
         {/* 3. CENTER FLOATING QUICK ACTION BUTTON */}
