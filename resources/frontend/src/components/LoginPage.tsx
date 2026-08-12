@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useApp } from '../context'
 import { apiLogin, apiRegister } from '../api'
 
 export default function LoginPage() {
-  const { tokens, login, mode } = useApp()
+  const { tokens, login } = useApp()
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
 
   // Form states
@@ -66,7 +66,6 @@ export default function LoginPage() {
     }
   }
 
-  const isDark = mode === 'dark' || mode === 'amoled'
   const isGrad = tokens.bg.includes('gradient') || tokens.bg.includes('linear')
 
   return (

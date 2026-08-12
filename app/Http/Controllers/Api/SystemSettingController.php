@@ -26,10 +26,24 @@ class SystemSettingController
      */
     public function update(Request $request): JsonResponse
     {
-        $payload = $request->all();
+        $allowedKeys = [
+            'theme',
+            'mode',
+            'lang',
+            'company_name',
+            'notification_sound',
+            'email_alerts',
+            'storage_alert_days',
+            'auto_backup',
+            'app_timezone',
+        ];
+
+        $payload = $request->only($allowedKeys);
 
         foreach ($payload as $key => $value) {
-            SystemSetting::set($key, is_array($value) ? json_encode($value) : (string) $value);
+            if ($value !== null) {
+                SystemSetting::set($key, is_array($value) ? json_encode($value) : (string) $value);
+            }
         }
 
         $allSettings = SystemSetting::all()->pluck('value', 'key')->toArray();

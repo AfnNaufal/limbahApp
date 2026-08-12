@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useApp } from '../../context'
 import { useIsMobile, useIsTablet } from '../../hooks/useMediaQuery'
 import WasteTypeDetailModal, { WasteSummaryItem } from './WasteTypeDetailModal'
@@ -9,7 +9,7 @@ interface B3WasteSummaryProps {
 }
 
 export default function B3WasteSummary({ transactions, searchQuery = '' }: B3WasteSummaryProps) {
-  const { tokens, theme, t } = useApp()
+  const { tokens, theme } = useApp()
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
 
@@ -19,7 +19,6 @@ export default function B3WasteSummary({ transactions, searchQuery = '' }: B3Was
   const [selectedWaste, setSelectedWaste] = useState<WasteSummaryItem | null>(null)
 
   const isGlass = theme === 'frosted' || theme === 'liquid'
-  const isNight = theme === 'nightcity'
 
   // Code mapping helper for standard waste names if code is missing
   const getStandardCode = (name: string, fallbackCode?: string): string => {

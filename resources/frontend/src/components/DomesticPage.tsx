@@ -51,6 +51,7 @@ export default function DomesticPage() {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const PAGE_SIZE = 10
+  const [apiError, setApiError] = useState(false)
 
   const recentActivities = useMemo(() => {
     if (apiData && apiData.length > 0) {
@@ -67,6 +68,7 @@ export default function DomesticPage() {
 
   const fetchData = () => {
     setLoading(true)
+    setApiError(false)
     const periodRange = getPeriodDateRange(year, periodFilter)
     getDomesticTransactions({
       page: 1,
@@ -100,6 +102,7 @@ export default function DomesticPage() {
       })
       .catch((err) => {
         console.error('Failed to load Domestic transactions:', err)
+        setApiError(true)
         setLoading(false)
       })
   }
@@ -238,6 +241,46 @@ export default function DomesticPage() {
 
   return (
     <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
+
+      {/* Error Alert Banner with Retry */}
+      {apiError && (
+        <div
+          style={{
+            background: `${tokens.danger}15`,
+            border: `1px solid ${tokens.danger}40`,
+            borderRadius: tokens.radius,
+            padding: '12px 16px',
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            fontFamily: tokens.fontFamily,
+          }}
+        >
+          <div style={{ color: tokens.danger, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+            <span>⚠️</span>
+            <span>Gagal memuat transaksi limbah domestik dari server. Periksa koneksi API Anda.</span>
+          </div>
+          <button
+            onClick={() => fetchData()}
+            disabled={loading}
+            style={{
+              padding: '6px 14px',
+              borderRadius: tokens.radius,
+              background: tokens.danger,
+              color: '#ffffff',
+              border: 'none',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: tokens.fontFamily,
+            }}
+          >
+            {loading ? 'Memuat...' : 'Coba Lagi'}
+          </button>
+        </div>
+      )}
 
       {/* Grid Charts */}
       <div style={{ display: 'grid', gridTemplateColumns: chartColumns, gap: 16, marginBottom: 20 }}>

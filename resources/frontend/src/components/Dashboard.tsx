@@ -388,35 +388,28 @@ export default function Dashboard() {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
 
+  const loadDashboard = async () => {
+    try {
+      setLoading(true)
+      setApiError(false)
+      const [summary, trends, breakdown] = await Promise.all([
+        getDashboardSummary(),
+        getDashboardTrends(12, year),
+        getDashboardCategoryBreakdown(),
+      ])
+      setSummaryData(summary)
+      setTrendsData(trends)
+      setBreakdownData(breakdown)
+    } catch (error) {
+      console.error('Failed to load dashboard summary:', error)
+      setApiError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    let active = true
-
-    async function loadDashboard(): Promise<void> {
-      try {
-        setLoading(true)
-        setApiError(false)
-        const [summary, trends, breakdown] = await Promise.all([
-          getDashboardSummary().catch(() => null),
-          getDashboardTrends(12, year).catch(() => null),
-          getDashboardCategoryBreakdown().catch(() => null),
-        ])
-        if (active) {
-          if (summary) setSummaryData(summary)
-          if (trends) setTrendsData(trends)
-          if (breakdown) setBreakdownData(breakdown)
-        }
-      } catch (error) {
-        console.error('Failed to load dashboard summary:', error)
-        if (active) setApiError(true)
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-
     void loadDashboard()
-    return () => {
-      active = false
-    }
   }, [year])
 
   const b3InWeight = summaryData !== null ? Number(summaryData.b3_in_weight_kg ?? 0) : SUMMARY_STATS.b3In.total
@@ -582,6 +575,46 @@ export default function Dashboard() {
           </span>
         </div>
       </div>
+
+      {/* Error Alert Banner with Retry */}
+      {apiError && (
+        <div
+          style={{
+            background: `${tokens.danger}15`,
+            border: `1px solid ${tokens.danger}40`,
+            borderRadius: tokens.radius,
+            padding: '12px 16px',
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            fontFamily: tokens.fontFamily,
+          }}
+        >
+          <div style={{ color: tokens.danger, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+            <span>⚠️</span>
+            <span>Gagal memuat data analitik terbaru dari server. Periksa koneksi API Anda.</span>
+          </div>
+          <button
+            onClick={() => loadDashboard()}
+            disabled={loading}
+            style={{
+              padding: '6px 14px',
+              borderRadius: tokens.radius,
+              background: tokens.danger,
+              color: '#ffffff',
+              border: 'none',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: tokens.fontFamily,
+            }}
+          >
+            {loading ? 'Memuat...' : 'Coba Lagi'}
+          </button>
+        </div>
+      )}
 
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: kpiColumns, gap: 12, marginBottom: 28 }}>

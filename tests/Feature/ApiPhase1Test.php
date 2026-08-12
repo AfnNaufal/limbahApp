@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\B3Transaction;
 use App\Models\DomesticTransaction;
+use App\Models\User;
 use App\Models\WasteCategory;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,6 +18,13 @@ class ApiPhase1Test extends TestCase
     use RefreshDatabase;
 
     protected $seed = true;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+    }
     /**
      * Test waste categories endpoint
      */

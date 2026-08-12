@@ -16,52 +16,54 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// Public Authentication Routes
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+// Public Authentication Routes (Rate Limited)
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
-// Protected Authentication Routes
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/me', [AuthController::class, 'me']);
-});
-
-// Health check endpoint
+// Health check endpoint (Public)
 Route::get('/health', function () {
     return response()->json(['status' => 'ok', 'timestamp' => now()]);
 });
 
-// Waste Categories (read-only for now)
-Route::apiResource('waste-categories', WasteCategoryController::class)
-    ->only(['index', 'show']);
+// Protected Routes
+Route::middleware('auth:sanctum')->group(function () {
+    // Auth profile & session
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/me', [AuthController::class, 'me']);
 
-// B3 Transactions (full CRUD)
-Route::apiResource('b3-transactions', B3TransactionController::class);
+    // Waste Categories (read-only)
+    Route::apiResource('waste-categories', WasteCategoryController::class)
+        ->only(['index', 'show']);
 
-// Domestic Transactions (full CRUD)
-Route::apiResource('domestic-transactions', DomesticTransactionController::class);
+    // B3 Transactions (full CRUD)
+    Route::apiResource('b3-transactions', B3TransactionController::class);
 
-// Notifications
-Route::prefix('notifications')->group(function () {
-    Route::get('/', [NotificationController::class, 'index']);
-    Route::post('{notification}/read', [NotificationController::class, 'markAsRead']);
-});
+    // Domestic Transactions (full CRUD)
+    Route::apiResource('domestic-transactions', DomesticTransactionController::class);
 
-// System Settings
-Route::prefix('settings')->group(function () {
-    Route::get('/', [SystemSettingController::class, 'index']);
-    Route::post('/', [SystemSettingController::class, 'update']);
-});
+    // Notifications
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::post('{notification}/read', [NotificationController::class, 'markAsRead']);
+    });
 
-// Dashboard & Analytics
-Route::prefix('dashboard')->group(function () {
-    Route::get('/summary', [DashboardController::class, 'summary']);
-    Route::get('/alerts', [DashboardController::class, 'alerts']);
-    Route::get('/health', [DashboardController::class, 'health']);
-    Route::get('/near-deadline-warnings', [DashboardController::class, 'nearDeadlineWarnings']);
-    Route::get('/expired-warnings', [DashboardController::class, 'expiredWarnings']);
-    Route::get('/monthly-trends', [DashboardController::class, 'monthlyTrends']);
-    Route::get('/category-breakdown', [DashboardController::class, 'categoryBreakdown']);
+    // System Settings
+    Route::prefix('settings')->group(function () {
+        Route::get('/', [SystemSettingController::class, 'index']);
+        Route::post('/', [SystemSettingController::class, 'update']);
+    });
+
+    // Dashboard & Analytics
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/summary', [DashboardController::class, 'summary']);
+        Route::get('/alerts', [DashboardController::class, 'alerts']);
+        Route::get('/health', [DashboardController::class, 'health']);
+        Route::get('/near-deadline-warnings', [DashboardController::class, 'nearDeadlineWarnings']);
+        Route::get('/expired-warnings', [DashboardController::class, 'expiredWarnings']);
+        Route::get('/monthly-trends', [DashboardController::class, 'monthlyTrends']);
+        Route::get('/trends', [DashboardController::class, 'monthlyTrends']); // Alias for compatibility
+        Route::get('/category-breakdown', [DashboardController::class, 'categoryBreakdown']);
+    });
 });
 
 // Catch-all for undefined routes

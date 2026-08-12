@@ -33,7 +33,7 @@ class StoreB3TransactionRequest extends FormRequest
             'manifest_number' => ['required_if:transaction_type,OUT', 'nullable', 'string', 'max:100', 'unique:b3_transactions,manifest_number'],
             'weight_kg' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
             'remaining_weight_kg' => ['required_if:transaction_type,OUT', 'nullable', 'numeric', 'min:0', 'max:999999.99'],
-            'status' => ['required', Rule::in(['PENDING', 'RECEIVED', 'PROCESSED', 'COMPLETED', 'REJECTED'])],
+            'status' => ['required', Rule::enum(\App\Enums\B3TransactionStatus::class)],
             'storage_deadline_at' => ['required_if:transaction_type,IN', 'nullable', 'date', 'after:date'],
             'scale_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'notes' => ['nullable', 'string', 'max:1000'],

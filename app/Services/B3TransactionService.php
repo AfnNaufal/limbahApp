@@ -6,9 +6,9 @@ use App\Models\B3Transaction;
 use App\Models\Notification;
 use App\Models\StorageAlert;
 use Carbon\Carbon;
-use Illuminate\Pagination\Paginator;
-
 use Illuminate\Http\UploadedFile;
+use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class B3TransactionService
@@ -18,32 +18,38 @@ class B3TransactionService
      */
     public function createTransaction(array $data): B3Transaction
     {
-        if (isset($data['scale_photo']) && $data['scale_photo'] instanceof UploadedFile) {
-            $data['scale_photo_path'] = $data['scale_photo']->store('scale_photos', 'public');
-            unset($data['scale_photo']);
-        }
+        return DB::transaction(function () use ($data) {
+            if (isset($data['scale_photo']) && $data['scale_photo'] instanceof UploadedFile) {
+                $data['scale_photo_path'] = $data['scale_photo']->store('scale_photos', 'public');
+                unset($data['scale_photo']);
+            }
 
-        $transaction = B3Transaction::create($data);
+            if (auth()->check()) {
+                $data['created_by'] = $data['created_by'] ?? auth()->id();
+            }
 
-        try {
-            $type = ($transaction->transaction_type ?? 'IN') === 'IN' ? 'b3in' : 'b3out';
-            $title = ($transaction->transaction_type ?? 'IN') === 'IN' ? 'Transaksi B3 Masuk' : 'Transaksi B3 Keluar';
-            $weightFormatted = number_format((float) $transaction->weight_kg, 1, ',', '.');
-            $wasteName = $transaction->waste_name ?? 'Limbah B3';
+            $transaction = B3Transaction::create($data);
 
-            Notification::create([
-                'type' => $type,
-                'title' => $title,
-                'message' => "Pencatatan {$wasteName} sejumlah {$weightFormatted} kg",
-                'reference_type' => 'B3_TRANSACTION',
-                'reference_id' => $transaction->id,
-                'is_read' => false,
-            ]);
-        } catch (\Throwable $e) {
-            // Non-blocking notification creation fallback
-        }
+            try {
+                $type = ($transaction->transaction_type?->value ?? (string) $transaction->transaction_type) === 'IN' ? 'b3in' : 'b3out';
+                $title = ($transaction->transaction_type?->value ?? (string) $transaction->transaction_type) === 'IN' ? 'Transaksi B3 Masuk' : 'Transaksi B3 Keluar';
+                $weightFormatted = number_format((float) $transaction->weight_kg, 1, ',', '.');
+                $wasteName = $transaction->waste_name ?? 'Limbah B3';
 
-        return $transaction;
+                Notification::create([
+                    'type' => $type,
+                    'title' => $title,
+                    'message' => "Pencatatan {$wasteName} sejumlah {$weightFormatted} kg",
+                    'reference_type' => 'B3_TRANSACTION',
+                    'reference_id' => $transaction->id,
+                    'is_read' => false,
+                ]);
+            } catch (\Throwable $e) {
+                // Non-blocking notification creation fallback
+            }
+
+            return $transaction;
+        });
     }
 
     /**
@@ -51,16 +57,22 @@ class B3TransactionService
      */
     public function updateTransaction(B3Transaction $transaction, array $data): B3Transaction
     {
-        if (isset($data['scale_photo']) && $data['scale_photo'] instanceof UploadedFile) {
-            if ($transaction->scale_photo_path) {
-                Storage::disk('public')->delete($transaction->scale_photo_path);
+        return DB::transaction(function () use ($transaction, $data) {
+            if (isset($data['scale_photo']) && $data['scale_photo'] instanceof UploadedFile) {
+                if ($transaction->scale_photo_path && Storage::disk('public')->exists($transaction->scale_photo_path)) {
+                    Storage::disk('public')->delete($transaction->scale_photo_path);
+                }
+                $data['scale_photo_path'] = $data['scale_photo']->store('scale_photos', 'public');
+                unset($data['scale_photo']);
             }
-            $data['scale_photo_path'] = $data['scale_photo']->store('scale_photos', 'public');
-            unset($data['scale_photo']);
-        }
 
-        $transaction->update($data);
-        return $transaction;
+            if (auth()->check()) {
+                $data['updated_by'] = $data['updated_by'] ?? auth()->id();
+            }
+
+            $transaction->update($data);
+            return $transaction;
+        });
     }
 
     /**

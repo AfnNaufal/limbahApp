@@ -88,6 +88,19 @@ export async function deleteApi<TResponse = void>(url: string): Promise<TRespons
   return parseResponse<TResponse>(response);
 }
 
+export async function postFormDataApi<TResponse>(
+  url: string,
+  formData: FormData,
+): Promise<TResponse> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: formData,
+  });
+
+  return parseResponse<TResponse>(response);
+}
+
 /* =========================================================
    AUTHENTICATION API
    ========================================================= */
@@ -185,13 +198,31 @@ export async function getDashboardTrends(months = 12, year?: string | number): P
   const query = new URLSearchParams()
   if (months) query.set('months', String(months))
   if (year) query.set('year', String(year))
-  const res = await getApi<{ trends: DashboardTrendItem[] }>(`/api/dashboard/trends?${query.toString()}`)
+  const res = await getApi<{ trends: DashboardTrendItem[] }>(`/api/dashboard/monthly-trends?${query.toString()}`)
   return res?.trends ?? [];
 }
 
 export async function getDashboardCategoryBreakdown(): Promise<CategoryBreakdownItem[]> {
   const res = await getApi<{ categories: CategoryBreakdownItem[] }>('/api/dashboard/category-breakdown');
   return res?.categories ?? [];
+}
+
+/* =========================================================
+   WASTE CATEGORIES
+   ========================================================= */
+
+export type CategoryItem = {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  waste_type?: string;
+};
+
+export async function getWasteCategories(): Promise<CategoryItem[]> {
+  const res = await getApi<{ data: CategoryItem[] } | CategoryItem[]>('/api/waste-categories?per_page=100');
+  if (Array.isArray(res)) return res;
+  return res?.data ?? [];
 }
 
 /* =========================================================
@@ -274,6 +305,39 @@ export async function getDomesticTransactions(
   );
 }
 
+export type CreateB3TransactionPayload = {
+  transaction_type: 'IN' | 'OUT';
+  waste_category_id: number;
+  waste_code: string;
+  waste_name: string;
+  date: string;
+  source?: string | null;
+  destination?: string | null;
+  transporter?: string | null;
+  manifest_number?: string | null;
+  weight_kg: number;
+  remaining_weight_kg?: number | null;
+  status: string;
+  storage_deadline_at?: string | null;
+  notes?: string | null;
+};
+
+export async function createB3TransactionApi(
+  payload: CreateB3TransactionPayload,
+  scalePhoto?: File | null,
+): Promise<{ data: B3Transaction }> {
+  const formData = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      formData.append(key, String(value));
+    }
+  });
+  if (scalePhoto) {
+    formData.append('scale_photo', scalePhoto);
+  }
+  return postFormDataApi<{ data: B3Transaction }>('/api/b3-transactions', formData);
+}
+
 export async function updateB3Transaction(
   id: number | string,
   data: Record<string, any>,
@@ -286,6 +350,41 @@ export async function updateB3Transaction(
 
 export async function deleteB3Transaction(id: number | string): Promise<void> {
   return deleteApi(`/api/b3-transactions/${id}`);
+}
+
+export type CreateDomesticTransactionPayload = {
+  date: string;
+  movement_type: 'IN' | 'OUT';
+  session?: 'MORNING' | 'AFTERNOON' | null;
+  processing_method?: string | null;
+  status?: string;
+  pic_name: string;
+  pic_phone?: string | null;
+  notes?: string | null;
+  domestic_residue_kg?: number;
+  leaf_waste_kg?: number;
+  paper_waste_kg?: number;
+  wood_scrap_kg?: number;
+  metal_kg?: number;
+  cardboard_kg?: number;
+  plant_waste_kg?: number;
+  plastic_bottle_kg?: number;
+  plastic_packaging_kg?: number;
+  food_container_kg?: number;
+  wood_cutting_kg?: number;
+  brick_kg?: number;
+  concrete_block_kg?: number;
+  cement_packaging_kg?: number;
+  ceiling_waste_kg?: number;
+};
+
+export async function createDomesticTransaction(
+  payload: CreateDomesticTransactionPayload,
+): Promise<{ data: DomesticTransaction }> {
+  return postApi<{ data: DomesticTransaction }, CreateDomesticTransactionPayload>(
+    '/api/domestic-transactions',
+    payload,
+  );
 }
 
 export async function updateDomesticTransaction(

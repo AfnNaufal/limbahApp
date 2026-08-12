@@ -1,4 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
+import { useApp } from '../context';
+import { createDomesticTransaction, type CreateDomesticTransactionPayload } from '../api';
 
 import {
     Field,
@@ -135,6 +137,7 @@ export default function DomesticWasteForm({
     direction: DomesticDirection;
 }) {
     const inputStyle = useInputStyle();
+    const { user } = useApp();
 
     const [form, setForm] = useState<FormState>(createInitialState);
     const [message, setMessage] = useState<MessageState | null>(null);
@@ -205,20 +208,49 @@ export default function DomesticWasteForm({
             return;
         }
 
-        setSubmitting(true);
+        const payload: CreateDomesticTransactionPayload = {
+            date: form.date,
+            movement_type: incoming ? 'IN' : 'OUT',
+            session: incoming ? form.session : null,
+            processing_method: !incoming ? form.processing_method : null,
+            status: 'SUBMITTED',
+            pic_name: user?.name || 'Petugas',
+            notes: form.notes.trim() || null,
+            domestic_residue_kg: toNumber(form.domestic_residue),
+            leaf_waste_kg: toNumber(form.leaf_waste),
+            paper_waste_kg: toNumber(form.paper_waste),
+            wood_scrap_kg: toNumber(form.wood_scrap),
+            metal_kg: toNumber(form.metal),
+            cardboard_kg: toNumber(form.cardboard),
+            plant_waste_kg: toNumber(form.plant_waste),
+            plastic_bottle_kg: toNumber(form.plastic_bottle),
+            plastic_packaging_kg: toNumber(form.plastic_packaging),
+            food_container_kg: toNumber(form.food_container),
+            wood_cutting_kg: toNumber(form.wood_cutting),
+            brick_kg: toNumber(form.brick),
+            concrete_block_kg: toNumber(form.concrete_block),
+            cement_packaging_kg: toNumber(form.cement_packaging),
+            ceiling_waste_kg: toNumber(form.ceiling_waste),
+        };
 
-        await new Promise<void>((resolve) => {
-            window.setTimeout(resolve, 300);
-        });
+        try {
+            setSubmitting(true);
+            await createDomesticTransaction(payload);
 
-        setMessage({
-            type: 'info',
-            text: incoming
-                ? 'Form berhasil divalidasi, tetapi belum disimpan karena backend Sampah Masuk belum tersedia.'
-                : 'Form berhasil divalidasi, tetapi belum disimpan karena backend Sampah Keluar belum tersedia.',
-        });
+            setMessage({
+                type: 'success',
+                text: `Data Sampah ${incoming ? 'Masuk' : 'Keluar'} berhasil disimpan.`,
+            });
 
-        setSubmitting(false);
+            setForm(createInitialState());
+        } catch (err: any) {
+            setMessage({
+                type: 'error',
+                text: err?.message || 'Data gagal disimpan ke database.',
+            });
+        } finally {
+            setSubmitting(false);
+        }
     }
 
     return (

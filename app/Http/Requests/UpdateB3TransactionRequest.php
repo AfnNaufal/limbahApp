@@ -17,7 +17,7 @@ class UpdateB3TransactionRequest extends FormRequest
         $transactionId = $this->route('b3_transaction')?->id ?? $this->route('b3_transaction');
 
         return [
-            'transaction_type' => ['sometimes', Rule::in(['IN', 'OUT'])],
+            'transaction_type' => ['sometimes', Rule::enum(\App\Enums\WasteMovementType::class)],
             'waste_category_id' => ['sometimes', 'exists:waste_categories,id'],
             'waste_code' => ['sometimes', 'string', 'max:50'],
             'waste_name' => ['sometimes', 'string', 'max:255'],
@@ -28,7 +28,7 @@ class UpdateB3TransactionRequest extends FormRequest
             'manifest_number' => ['nullable', 'string', 'max:100', Rule::unique('b3_transactions', 'manifest_number')->ignore($transactionId)],
             'weight_kg' => ['sometimes', 'numeric', 'min:0.01', 'max:999999.99'],
             'remaining_weight_kg' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
-            'status' => ['sometimes', Rule::in(['PENDING', 'RECEIVED', 'PROCESSED', 'COMPLETED', 'REJECTED'])],
+            'status' => ['sometimes', Rule::enum(\App\Enums\B3TransactionStatus::class)],
             'storage_deadline_at' => ['nullable', 'date'],
             'scale_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'notes' => ['nullable', 'string', 'max:1000'],

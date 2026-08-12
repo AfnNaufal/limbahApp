@@ -6,6 +6,7 @@ use App\Models\DomesticTransaction;
 use App\Models\Notification;
 use Carbon\Carbon;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\DB;
 
 class DomesticTransactionService
 {
@@ -14,26 +15,32 @@ class DomesticTransactionService
      */
     public function createTransaction(array $data): DomesticTransaction
     {
-        $transaction = DomesticTransaction::create($data);
+        return DB::transaction(function () use ($data) {
+            if (auth()->check()) {
+                $data['created_by'] = $data['created_by'] ?? auth()->id();
+            }
 
-        try {
-            $totalWeight = (float) ($transaction->total_weight_kg ?? ((float) ($transaction->organic_weight_kg ?? 0) + (float) ($transaction->inorganic_weight_kg ?? 0)));
-            $weightFormatted = number_format($totalWeight, 1, ',', '.');
-            $sessionName = ($transaction->session ?? '') === 'MORNING' ? 'Sesi Pagi' : (($transaction->session ?? '') === 'AFTERNOON' ? 'Sesi Sore' : 'Harian');
+            $transaction = DomesticTransaction::create($data);
 
-            Notification::create([
-                'type' => 'domestic',
-                'title' => 'Limbah Domestik (' . $sessionName . ')',
-                'message' => "Pencatatan limbah domestik total {$weightFormatted} kg",
-                'reference_type' => 'DOMESTIC_TRANSACTION',
-                'reference_id' => $transaction->id,
-                'is_read' => false,
-            ]);
-        } catch (\Throwable $e) {
-            // Non-blocking fallback
-        }
+            try {
+                $totalWeight = (float) ($transaction->total_weight_kg ?? ((float) ($transaction->organic_weight_kg ?? 0) + (float) ($transaction->inorganic_weight_kg ?? 0)));
+                $weightFormatted = number_format($totalWeight, 1, ',', '.');
+                $sessionName = ($transaction->session?->value ?? (string) $transaction->session) === 'MORNING' ? 'Sesi Pagi' : (($transaction->session?->value ?? (string) $transaction->session) === 'AFTERNOON' ? 'Sesi Sore' : 'Harian');
 
-        return $transaction;
+                Notification::create([
+                    'type' => 'domestic',
+                    'title' => 'Limbah Domestik (' . $sessionName . ')',
+                    'message' => "Pencatatan limbah domestik total {$weightFormatted} kg",
+                    'reference_type' => 'DOMESTIC_TRANSACTION',
+                    'reference_id' => $transaction->id,
+                    'is_read' => false,
+                ]);
+            } catch (\Throwable $e) {
+                // Non-blocking fallback
+            }
+
+            return $transaction;
+        });
     }
 
     /**
@@ -41,8 +48,14 @@ class DomesticTransactionService
      */
     public function updateTransaction(DomesticTransaction $transaction, array $data): DomesticTransaction
     {
-        $transaction->update($data);
-        return $transaction;
+        return DB::transaction(function () use ($transaction, $data) {
+            if (auth()->check()) {
+                $data['updated_by'] = $data['updated_by'] ?? auth()->id();
+            }
+
+            $transaction->update($data);
+            return $transaction;
+        });
     }
 
     /**

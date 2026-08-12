@@ -1,19 +1,16 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useApp } from '../../context'
-import { useIsMobile, useIsTablet } from '../../hooks/useMediaQuery'
+import { useIsMobile } from '../../hooks/useMediaQuery'
 
 interface DomesticWasteSummaryProps {
   transactions: any[]
 }
 
 export default function DomesticWasteSummary({ transactions }: DomesticWasteSummaryProps) {
-  const { tokens, theme, t } = useApp()
+  const { tokens } = useApp()
   const isMobile = useIsMobile()
-  const isTablet = useIsTablet()
 
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
-
-  const isGlass = theme === 'frosted' || theme === 'liquid'
 
   // Aggregation per Domestic Category: Organik, Anorganik, Residu
   const summary = useMemo(() => {

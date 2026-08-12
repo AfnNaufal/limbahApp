@@ -38,7 +38,7 @@ class B3Transaction extends Model
         'weight_kg' => 'decimal:2',
         'remaining_weight_kg' => 'decimal:2',
         'transaction_type' => \App\Enums\WasteMovementType::class,
-        'status' => 'string',
+        'status' => \App\Enums\B3TransactionStatus::class,
     ];
 
     /**

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -31,7 +31,7 @@ interface WasteTypeDetailModalProps {
 }
 
 export default function WasteTypeDetailModal({ item, onClose }: WasteTypeDetailModalProps) {
-  const { tokens, theme, t } = useApp()
+  const { tokens, theme } = useApp()
   const isMobile = useIsMobile()
   const [filterType, setFilterType] = useState<'all' | 'in' | 'out'>('all')
 

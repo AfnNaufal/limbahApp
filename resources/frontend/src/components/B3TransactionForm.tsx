@@ -4,6 +4,12 @@ import {
     useState,
     type FormEvent,
 } from 'react';
+import {
+    getWasteCategories,
+    createB3TransactionApi,
+    type CategoryItem as Category,
+    type CreateB3TransactionPayload as B3TransactionPayload,
+} from '../api';
 
 import {
     Field,
@@ -18,13 +24,6 @@ import {
 type TransactionType = 'IN' | 'OUT';
 
 type MessageType = 'success' | 'error' | 'info';
-
-type Category = {
-    id: number;
-    code: string;
-    name: string;
-    waste_type?: string;
-};
 
 type FormState = {
     date: string;
@@ -42,33 +41,6 @@ type FormState = {
     scale_photo: File | null;
 };
 
-type B3TransactionPayload = {
-    transaction_type: TransactionType;
-    waste_category_id: number;
-    waste_code: string;
-    waste_name: string;
-    date: string;
-    source: string | null;
-    destination: string | null;
-    transporter: string | null;
-    manifest_number: string | null;
-    weight_kg: number;
-    status: string;
-    storage_deadline_at: string | null;
-    notes: string | null;
-};
-
-type ApiErrorResponse = {
-    message?: string;
-    errors?: Record<string, string[]>;
-};
-
-type CategoryApiResponse =
-    | Category[]
-    | {
-        data?: Category[];
-    };
-
 const initialState = (): FormState => ({
     date: new Date().toISOString().slice(0, 10),
     waste_category_id: '',
@@ -84,74 +56,6 @@ const initialState = (): FormState => ({
     notes: '',
     scale_photo: null,
 });
-
-async function parseErrorResponse(response: Response): Promise<string> {
-    const result = (await response.json().catch(() => null)) as
-        | ApiErrorResponse
-        | null;
-
-    if (result?.errors) {
-        const firstError = Object.values(result.errors)
-            .flat()
-            .find(Boolean);
-
-        if (firstError) {
-            return firstError;
-        }
-    }
-
-    return result?.message || `Permintaan gagal (${response.status}).`;
-}
-
-async function getWasteCategories(): Promise<Category[]> {
-    const response = await fetch('/api/waste-categories', {
-        method: 'GET',
-        headers: {
-            Accept: 'application/json',
-        },
-    });
-
-    if (!response.ok) {
-        throw new Error(await parseErrorResponse(response));
-    }
-
-    const result = (await response.json()) as CategoryApiResponse;
-
-    if (Array.isArray(result)) {
-        return result;
-    }
-
-    return Array.isArray(result.data) ? result.data : [];
-}
-
-async function createB3Transaction(
-    payload: B3TransactionPayload,
-    scalePhoto: File | null,
-): Promise<void> {
-    const formData = new FormData();
-
-    Object.entries(payload).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-            formData.append(key, String(value));
-        }
-    });
-
-    if (scalePhoto) {
-        formData.append('scale_photo', scalePhoto);
-    }
-
-    const response = await fetch('/api/b3-transactions', {
-        method: 'POST',
-        headers: {
-            Accept: 'application/json',
-        },
-        body: formData,
-    });
-
-    if (!response.ok) {
-        throw new Error(await parseErrorResponse(response));
-    }
-}
 
 export default function B3TransactionForm({
     type,
@@ -305,7 +209,7 @@ export default function B3TransactionForm({
         try {
             setSubmitting(true);
 
-            await createB3Transaction(payload, form.scale_photo);
+            await createB3TransactionApi(payload, form.scale_photo);
 
             setMessage({
                 type: 'success',
