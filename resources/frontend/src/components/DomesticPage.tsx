@@ -4,8 +4,10 @@ import {
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
 import { useApp, getPeriodDateRange } from '../context'
+import { useToast } from '../context/ToastContext'
 import { getDomesticTransactions, updateDomesticTransaction, deleteDomesticTransaction } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
+import { useDebounce } from '../hooks/useDebounce'
 import {
   DOMESTIC_TRANSACTIONS, MONTHLY_DOM_MORNING, MONTHLY_DOM_AFTERNOON,
   PIE_DOM_MORNING, PIE_DOM_AFTERNOON, NOTIFICATIONS,
@@ -52,6 +54,8 @@ export default function DomesticPage() {
   const isTablet = useIsTablet()
   const PAGE_SIZE = 10
   const [apiError, setApiError] = useState(false)
+  const { toast } = useToast()
+  const debouncedSearch = useDebounce(search, 350)
 
   const recentActivities = useMemo(() => {
     if (apiData && apiData.length > 0) {
@@ -76,7 +80,7 @@ export default function DomesticPage() {
       movement_type: filterMovement === 'all' ? undefined : filterMovement,
       session: filterSession === 'all' ? undefined : filterSession.toUpperCase() as 'MORNING' | 'AFTERNOON',
       status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       from: periodRange.from,
       to: periodRange.to,
     })
@@ -109,7 +113,7 @@ export default function DomesticPage() {
 
   useEffect(() => {
     fetchData()
-  }, [filterMovement, filterSession, filterStatus, search, year, periodFilter])
+  }, [filterMovement, filterSession, filterStatus, debouncedSearch, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)
@@ -131,9 +135,10 @@ export default function DomesticPage() {
         notes: editForm.notes || null,
       })
       setEditingTx(null)
+      toast.success('Data transaksi domestik berhasil diperbarui')
       fetchData()
     } catch (err: any) {
-      alert(err.message || 'Gagal merubah transaksi')
+      toast.error(err.message || 'Gagal mengubah transaksi')
     } finally {
       setSaving(false)
     }
@@ -145,9 +150,10 @@ export default function DomesticPage() {
       setSaving(true)
       await deleteDomesticTransaction(deletingTx.rawId)
       setDeletingTx(null)
+      toast.success('Data transaksi domestik berhasil dihapus')
       fetchData()
     } catch (err: any) {
-      alert(err.message || 'Gagal menghapus transaksi')
+      toast.error(err.message || 'Gagal menghapus transaksi')
     } finally {
       setSaving(false)
     }

@@ -17,37 +17,38 @@ class DomesticTransactionSeeder extends Seeder
         $picNames = ['Budi Santoso', 'Ahmad Wijaya', 'Siti Nurhaliza', 'Rini Susanti', 'Hendra Kusuma'];
         $sessions = ['MORNING', 'AFTERNOON'];
 
-        // Generate 40 sample transactions with unique (date, session) combinations
-        $usedCombinations = [];
+        // Generate 40 deterministic transactions with guaranteed unique (date, session)
         $count = 0;
 
-        while ($count < 40) {
-            $date = Carbon::now()->subDays(rand(0, 30))->format('Y-m-d');
-            $session = $sessions[array_rand($sessions)];
-            $combination = "$date-$session";
+        for ($day = 0; $day < 20; $day++) {
+            $date = Carbon::now()->subDays($day)->format('Y-m-d');
 
-            // Skip if this combination already used
-            if (in_array($combination, $usedCombinations)) {
-                continue;
+            foreach ($sessions as $sessionIndex => $session) {
+                $organicWeight = 25 + (($day * 7 + $sessionIndex * 13) % 110);
+                $inorganicWeight = 35 + (($day * 11 + $sessionIndex * 17) % 140);
+                $status = $statuses[($day + $sessionIndex) % count($statuses)];
+                $pic = $picNames[($day * 2 + $sessionIndex) % count($picNames)];
+
+                DomesticTransaction::firstOrCreate(
+                    [
+                        'date' => $date,
+                        'session' => $session,
+                        'movement_type' => 'IN',
+                    ],
+                    [
+                        'organic_weight_kg' => $organicWeight,
+                        'inorganic_weight_kg' => $inorganicWeight,
+                        'total_weight_kg' => $organicWeight + $inorganicWeight,
+                        'domestic_residue_kg' => round($organicWeight * 0.15, 2),
+                        'status' => $status,
+                        'pic_name' => $pic,
+                        'pic_phone' => '0812' . str_pad((string) (34567890 + $count), 8, '0', STR_PAD_LEFT),
+                        'notes' => 'Pencatatan limbah domestik ' . ($session === 'MORNING' ? 'sesi pagi' : 'sesi sore'),
+                    ]
+                );
+
+                $count++;
             }
-
-            $usedCombinations[] = $combination;
-            $organicWeight = rand(20, 150);
-            $inorganicWeight = rand(30, 200);
-
-            DomesticTransaction::create([
-                'date' => $date,
-                'session' => $session,
-                'organic_weight_kg' => $organicWeight,
-                'inorganic_weight_kg' => $inorganicWeight,
-                'total_weight_kg' => $organicWeight + $inorganicWeight,
-                'status' => $statuses[array_rand($statuses)],
-                'pic_name' => $picNames[array_rand($picNames)],
-                'pic_phone' => '08' . rand(10000000000, 99999999999),
-                'notes' => 'Domestic waste transaction ' . ($count + 1),
-            ]);
-
-            $count++;
         }
     }
 }

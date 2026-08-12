@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { AppProvider, useApp } from './context'
+import { ToastProvider } from './context/ToastContext'
 import { useIsMobile } from './hooks/useMediaQuery'
 import SplashScreen from './components/SplashScreen'
 import Sidebar from './components/Sidebar'
@@ -119,7 +120,9 @@ function App() {
 
   return (
     <AppProvider>
-      <AppInner splashDone={splashDone} setSplashDone={setSplashDone} />
+      <ToastProvider>
+        <AppInner splashDone={splashDone} setSplashDone={setSplashDone} />
+      </ToastProvider>
     </AppProvider>
   )
 }

@@ -4,8 +4,10 @@ import {
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
 import { useApp, getPeriodDateRange } from '../context'
+import { useToast } from '../context/ToastContext'
 import { getB3Transactions, updateB3Transaction, deleteB3Transaction } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
+import { useDebounce } from '../hooks/useDebounce'
 import {
   B3_TRANSACTIONS, MONTHLY_B3_IN, MONTHLY_B3_OUT,
   PIE_B3_IN, PIE_B3_OUT, STORAGE_ALERTS, NOTIFICATIONS,
@@ -57,6 +59,8 @@ export default function B3Page() {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const PAGE_SIZE = 10
+  const { toast } = useToast()
+  const debouncedSearch = useDebounce(search, 350)
 
   const recentActivities = useMemo(() => {
     if (apiData && apiData.length > 0) {
@@ -79,7 +83,7 @@ export default function B3Page() {
     getB3Transactions({
       page: 1,
       per_page: 1000,
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       from: filterFrom || periodRange.from,
       to: filterTo || periodRange.to,
     })
@@ -119,7 +123,7 @@ export default function B3Page() {
 
   useEffect(() => {
     fetchData()
-  }, [filterFrom, filterTo, search, year, periodFilter])
+  }, [filterFrom, filterTo, debouncedSearch, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)
@@ -146,9 +150,10 @@ export default function B3Page() {
         notes: editForm.notes || null,
       })
       setEditingTx(null)
+      toast.success('Data transaksi B3 berhasil diperbarui')
       fetchData()
     } catch (err: any) {
-      alert(err.message || 'Gagal merubah transaksi')
+      toast.error(err.message || 'Gagal mengubah transaksi')
     } finally {
       setSaving(false)
     }
@@ -160,9 +165,10 @@ export default function B3Page() {
       setSaving(true)
       await deleteB3Transaction(deletingTx.rawId)
       setDeletingTx(null)
+      toast.success('Data transaksi B3 berhasil dihapus')
       fetchData()
     } catch (err: any) {
-      alert(err.message || 'Gagal menghapus transaksi')
+      toast.error(err.message || 'Gagal menghapus transaksi')
     } finally {
       setSaving(false)
     }

@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp, getPeriodDateRange } from '../../context'
+import { useToast } from '../../context/ToastContext'
 import { getB3Transactions, getDomesticTransactions } from '../../api'
 import { exportToCSV, exportToPrintPDF } from '../../utils/exportUtils'
 
 export default function ExportControls({ isMobile }: { isMobile: boolean }) {
   const { tokens, page, search, year, periodFilter } = useApp()
+  const { toast } = useToast()
   const [showExportMenu, setShowExportMenu] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
 
@@ -105,15 +107,17 @@ export default function ExportControls({ isMobile }: { isMobile: boolean }) {
     }
 
     if (rows.length === 0) {
-      alert('Tidak ada data transaksi yang cocok dengan filter saat ini untuk diekspor.')
+      toast.warning('Tidak ada data transaksi yang cocok dengan filter saat ini untuk diekspor.')
       return
     }
 
     if (format === 'csv') {
       const filename = `${title.replace(/\s+/g, '_')}_${periodLabel.replace(/\s+/g, '_')}`
       exportToCSV(filename, headers, rows)
+      toast.success('Data transaksi berhasil diekspor ke CSV/Excel')
     } else {
       exportToPrintPDF(title, periodLabel, headers, rows)
+      toast.success('Pratinjau cetak PDF siap')
     }
   }
 
