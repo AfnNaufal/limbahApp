@@ -1,8 +1,10 @@
 import {
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FormEvent,
+    type ChangeEvent,
 } from 'react';
 import {
     getWasteCategories,
@@ -10,6 +12,11 @@ import {
     type CategoryItem as Category,
     type CreateB3TransactionPayload as B3TransactionPayload,
 } from '../api';
+import { useApp } from '../context';
+import {
+    compressImage,
+    type CompressionResult,
+} from '../utils/imageCompressor';
 
 import {
     Field,
@@ -62,12 +69,19 @@ export default function B3TransactionForm({
 }: {
     type: TransactionType;
 }) {
+    const { tokens } = useApp();
     const inputStyle = useInputStyle();
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     const [form, setForm] = useState<FormState>(initialState);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loadingCategories, setLoadingCategories] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+
+    // State untuk kompresi gambar
+    const [isCompressing, setIsCompressing] = useState(false);
+    const [compressionInfo, setCompressionInfo] =
+        useState<CompressionResult | null>(null);
 
     const [message, setMessage] = useState<{
         type: MessageType;
@@ -112,6 +126,15 @@ export default function B3TransactionForm({
         };
     }, []);
 
+    // Cleanup object URL saat unmount
+    useEffect(() => {
+        return () => {
+            if (compressionInfo?.previewUrl) {
+                URL.revokeObjectURL(compressionInfo.previewUrl);
+            }
+        };
+    }, [compressionInfo]);
+
     const selectedCategory = useMemo(
         () =>
             categories.find(
@@ -144,7 +167,67 @@ export default function B3TransactionForm({
         }));
     }
 
+    async function handlePhotoSelect(
+        event: ChangeEvent<HTMLInputElement>,
+    ): Promise<void> {
+        const selectedFile = event.target.files?.[0];
+
+        if (!selectedFile) {
+            clearPhoto();
+            return;
+        }
+
+        try {
+            setIsCompressing(true);
+
+            // Kompresi otomatis di sisi browser
+            const result = await compressImage(selectedFile, {
+                maxWidth: 1600,
+                maxHeight: 1600,
+                quality: 0.75,
+                mimeType: 'image/webp',
+            });
+
+            // Bersihkan URL preview sebelumnya jika ada
+            if (compressionInfo?.previewUrl) {
+                URL.revokeObjectURL(compressionInfo.previewUrl);
+            }
+
+            setCompressionInfo(result);
+            setForm((previous) => ({
+                ...previous,
+                scale_photo: result.file,
+            }));
+        } catch (error) {
+            setMessage({
+                type: 'error',
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : 'Gagal mengompresi foto.',
+            });
+            clearPhoto();
+        } finally {
+            setIsCompressing(false);
+        }
+    }
+
+    function clearPhoto(): void {
+        if (compressionInfo?.previewUrl) {
+            URL.revokeObjectURL(compressionInfo.previewUrl);
+        }
+        setCompressionInfo(null);
+        setForm((previous) => ({
+            ...previous,
+            scale_photo: null,
+        }));
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }
+
     function reset(): void {
+        clearPhoto();
         setForm(initialState());
         setMessage(null);
     }
@@ -216,6 +299,7 @@ export default function B3TransactionForm({
                 text: `Data B3 ${incoming ? 'Masuk' : 'Keluar'} berhasil disimpan.`,
             });
 
+            clearPhoto();
             setForm(initialState());
         } catch (error) {
             setMessage({
@@ -433,31 +517,151 @@ export default function B3TransactionForm({
 
                         <Field
                             label="Foto timbangan"
-                            hint="Upload foto bukti penimbangan fisik (Format: JPG, PNG, WEBP, Maks 5MB)."
+                            hint="Upload foto bukti timbangan (otomatis dioptimalkan ke WebP)."
                         >
                             <input
+                                ref={fileInputRef}
                                 style={inputStyle}
                                 type="file"
                                 accept="image/*"
-                                onChange={(event) =>
-                                    update(
-                                        'scale_photo',
-                                        event.target.files?.[0] ??
-                                        null,
-                                    )
-                                }
+                                onChange={handlePhotoSelect}
+                                disabled={isCompressing}
                             />
                         </Field>
                     </Grid>
 
-                    {form.scale_photo && (
+                    {/* Status Proses Kompresi */}
+                    {isCompressing && (
                         <div
                             style={{
-                                marginTop: 10,
-                                fontSize: 12,
+                                marginTop: 12,
+                                padding: '10px 14px',
+                                background: tokens.bgSecondary,
+                                border: `1px solid ${tokens.border}`,
+                                borderRadius: tokens.radius,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                fontSize: 13,
+                                color: tokens.text,
                             }}
                         >
-                            File dipilih: {form.scale_photo.name}
+                            <span
+                                style={{
+                                    display: 'inline-block',
+                                    animation: 'spin 1s linear infinite',
+                                    fontSize: 16,
+                                }}
+                            >
+                                ⏳
+                            </span>
+                            <span>Mengompresi dan mengoptimalkan gambar di perangkat...</span>
+                        </div>
+                    )}
+
+                    {/* Preview dan Statistik Kompresi Gambar */}
+                    {compressionInfo && !isCompressing && (
+                        <div
+                            style={{
+                                marginTop: 14,
+                                padding: 12,
+                                background: tokens.bgSecondary,
+                                border: `1px solid ${tokens.border}`,
+                                borderRadius: tokens.radius,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: 12,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 12,
+                                    minWidth: 0,
+                                }}
+                            >
+                                <img
+                                    src={compressionInfo.previewUrl}
+                                    alt="Pratinjau Timbangan"
+                                    style={{
+                                        width: 52,
+                                        height: 52,
+                                        borderRadius: 6,
+                                        objectFit: 'cover',
+                                        border: `1px solid ${tokens.cardBorder}`,
+                                    }}
+                                />
+                                <div style={{ minWidth: 0 }}>
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                            color: tokens.text,
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            maxWidth: 240,
+                                        }}
+                                    >
+                                        {compressionInfo.file.name}
+                                    </div>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            marginTop: 4,
+                                            flexWrap: 'wrap',
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: 11,
+                                                color: tokens.textMuted,
+                                            }}
+                                        >
+                                            {compressionInfo.width}×
+                                            {compressionInfo.height}px
+                                        </span>
+                                        <span
+                                            style={{
+                                                fontSize: 11,
+                                                padding: '2px 6px',
+                                                borderRadius: 4,
+                                                background:
+                                                    'rgba(16, 185, 129, 0.15)',
+                                                color: tokens.success,
+                                                fontWeight: 700,
+                                            }}
+                                        >
+                                            ⚡ {compressionInfo.originalSizeFormatted} ➔{' '}
+                                            {compressionInfo.compressedSizeFormatted} (-
+                                            {compressionInfo.savedPercentage}%)
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={clearPhoto}
+                                style={{
+                                    padding: '6px 12px',
+                                    background: 'transparent',
+                                    border: `1px solid ${tokens.danger}`,
+                                    color: tokens.danger,
+                                    borderRadius: 6,
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                }}
+                            >
+                                Hapus Foto
+                            </button>
                         </div>
                     )}
                 </FormCard>
@@ -480,7 +684,7 @@ export default function B3TransactionForm({
                 </FormCard>
 
                 <FormActions
-                    submitting={submitting}
+                    submitting={submitting || isCompressing}
                     onReset={reset}
                 />
             </form>

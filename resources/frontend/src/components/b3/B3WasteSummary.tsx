@@ -24,17 +24,20 @@ export default function B3WasteSummary({ transactions, searchQuery = '' }: B3Was
   const getStandardCode = (name: string, fallbackCode?: string): string => {
     if (fallbackCode && fallbackCode !== '-' && fallbackCode.trim() !== '') return fallbackCode
     const lower = name.toLowerCase()
-    if (lower.includes('oli') || lower.includes('pelumas')) return 'B105d'
-    if (lower.includes('baterai') || lower.includes('battery')) return 'A102d'
-    if (lower.includes('lampu') || lower.includes('tl')) return 'B107d'
-    if (lower.includes('cat') || lower.includes('pelarut') || lower.includes('solvent')) return 'A337-1'
-    if (lower.includes('filter')) return 'B109d'
-    if (lower.includes('aki')) return 'A102d'
-    if (lower.includes('drum') || lower.includes('kemasan')) return 'B104d'
-    if (lower.includes('majun') || lower.includes('kain')) return 'B110d'
-    if (lower.includes('sludge') || lower.includes('lumpur')) return 'B351-1'
-    if (lower.includes('debu') || lower.includes('fly ash')) return 'B409'
-    if (lower.includes('medis') || lower.includes('klinik')) return 'A337-2'
+    if (lower.includes('terkontaminasi')) return 'A108d'
+    if (lower.includes('oil treatment') || lower.includes('sludge oil')) return 'A331-2'
+    if (lower.includes('toner')) return 'B353-1'
+    if (lower.includes('ipal')) return 'B337-2'
+    if (lower.includes('asbes')) return 'B102d'
+    if (lower.includes('kadaluwarsa') || lower.includes('kedaluwarsa') || (lower.includes('kimia') && !lower.includes('lab'))) return 'A337-3'
+    if (lower.includes('lampu') || lower.includes('tl') || lower.includes('elektronik') || lower.includes('crt') || lower.includes('pcb') || lower.includes('kawat')) return 'B107d'
+    if (lower.includes('majun') || lower.includes('kain') || lower.includes('rags')) return 'B110d'
+    if (lower.includes('filter') || lower.includes('pencemaran udara')) return 'B109d'
+    if (lower.includes('oli') || lower.includes('pelumas') || lower.includes('hidrolik') || lower.includes('gear')) return 'B105d'
+    if (lower.includes('kemasan') || lower.includes('drum') || lower.includes('wadah')) return 'B104d'
+    if (lower.includes('aki') || lower.includes('baterai') || lower.includes('battery')) return 'A102d'
+    if (lower.includes('sludge') || lower.includes('lumpur')) return 'B337-2'
+    if (lower.includes('debu')) return 'B102d'
     return 'B3-GEN'
   }
 

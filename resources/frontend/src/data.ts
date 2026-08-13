@@ -18,8 +18,20 @@ export type Notification = AppNotification
 const SOURCES = ['Lab Kimia', 'Produksi A', 'Gudang B', 'Workshop', 'Klinik', 'Boiler Room', 'Bengkel']
 const DESTINATIONS = ['PT Prasada Pamunah', 'PPLI Cileungsi', 'PT Wastec Intl', 'PT ARAH Enviro', 'PT Tenang Jaya']
 const TRANSPORTS = ['PT Lestari Trans', 'CV Mitra Angkut', 'PT Hijau Logistik']
-const WASTE_TYPES_IN = ['Oli Bekas', 'Baterai Li-ion', 'Lampu TL Bekas', 'Cat & Pelarut', 'Filter Oli', 'Aki Bekas', 'Drum Bekas B3']
-const WASTE_TYPES_OUT = ['Penimbunan Khusus', 'Incinerasi', 'Daur Ulang Logam', 'Stabilisasi/Solidifikasi', 'Co-Processing']
+const WASTE_ITEMS_B3 = [
+  { code: 'A108d', name: 'Limbah Terkontaminasi B3' },
+  { code: 'A331-2', name: 'Sludge dari Oil Treatment atau Fasilitas Penyimpanan' },
+  { code: 'B353-1', name: 'Toner Bekas' },
+  { code: 'B337-2', name: 'Sludge IPAL' },
+  { code: 'B102d', name: 'Debu dan Fiber Asbes-Asbes Putih' },
+  { code: 'A337-3', name: 'Bahan Kimia Kadaluwarsa' },
+  { code: 'B107d', name: 'Lampu TL, Limbah Elektronik Termasuk Cathode Ray Tube (CRT), PCB, Karet Kawat (Wire Rubber)' },
+  { code: 'B110d', name: 'Kain Majun Bekas (Used Rags)' },
+  { code: 'B109d', name: 'Filter Bekas dari Fasilitas Pengendalian Pencemaran Udara' },
+  { code: 'B105d', name: 'Minyak Pelumas Bekas (Minyak pelumas bekas hidrolik, mesin, gear, dan lainnya)' },
+  { code: 'B104d', name: 'Kemasan Bekas B3' },
+  { code: 'A102d', name: 'Aki/Baterai Bekas' },
+]
 
 function rng(seed: number) {
   let s = seed
@@ -46,14 +58,17 @@ export const B3_TRANSACTIONS: B3Transaction[] = Array.from({ length: 48 }, (_, i
   const amountKg = Math.round((rand() * 480 + 20) * 10) / 10
   const capKg = Math.round(rand() * 800 + 200)
   const currKg = Math.round(rand() * capKg)
+  const wasteItem = WASTE_ITEMS_B3[i % WASTE_ITEMS_B3.length]!
+
   return {
     id: `B3-${String(i + 1).padStart(4, '0')}`,
     date: genDate(Math.min(month, 12), Math.min(day, 28)),
-    wasteCode: `D-${String(Math.floor(rand() * 99) + 100).padStart(3, '0')}`,
-    type: isIn
-      ? WASTE_TYPES_IN[Math.floor(rand() * WASTE_TYPES_IN.length)]!
-      : WASTE_TYPES_OUT[Math.floor(rand() * WASTE_TYPES_OUT.length)]!,
+    wasteCode: wasteItem.code,
+    type: wasteItem.name,
+    waste_code: wasteItem.code,
+    waste_name: wasteItem.name,
     amountKg,
+    weightKg: amountKg,
     source: SOURCES[Math.floor(rand() * SOURCES.length)]!,
     destination: DESTINATIONS[Math.floor(rand() * DESTINATIONS.length)]!,
     transport: TRANSPORTS[Math.floor(rand() * TRANSPORTS.length)]!,
@@ -214,7 +229,7 @@ export const NOTIFICATIONS: Notification[] = [
     id: 'n1',
     type: 'alert',
     title: 'Batas Simpan Terlampaui',
-    message: 'Limbah D-115 (Oli Bekas) telah melampaui batas penyimpanan 90 hari.',
+    message: 'Limbah B105d (Minyak Pelumas Bekas) telah melampaui batas penyimpanan 90 hari.',
     timestamp: '2024-12-15T08:23:00',
     read: false,
   },
@@ -222,7 +237,7 @@ export const NOTIFICATIONS: Notification[] = [
     id: 'n2',
     type: 'b3in',
     title: 'B3 Masuk Baru',
-    message: 'Entri baru: 124.5 kg Aki Bekas dari Workshop. MNF-2024-01047.',
+    message: 'Entri baru: 124.5 kg Aki/Baterai Bekas (A102d) dari Workshop. MNF-2024-01047.',
     timestamp: '2024-12-14T14:11:00',
     read: false,
   },
@@ -230,7 +245,7 @@ export const NOTIFICATIONS: Notification[] = [
     id: 'n3',
     type: 'alert',
     title: 'Mendekati Batas Simpan',
-    message: 'Limbah D-089 (Baterai Li-ion) mendekati batas penyimpanan — 7 hari tersisa.',
+    message: 'Limbah A102d (Aki/Baterai Bekas) mendekati batas penyimpanan — 7 hari tersisa.',
     timestamp: '2024-12-14T09:45:00',
     read: false,
   },
