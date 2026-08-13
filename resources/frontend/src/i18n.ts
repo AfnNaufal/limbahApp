@@ -35,7 +35,7 @@ export const LANGUAGES: LangMeta[] = [
 type Translations = Record<string, string>
 
 const ID: Translations = {
-  appName: 'Monitoring Limbah',
+  appName: 'Monowa',
   appSubtitle: 'Sistem Pemantauan Limbah Fasilitas',
   home: 'Beranda',
   dashboard: 'Beranda',
@@ -183,7 +183,7 @@ const ID: Translations = {
 }
 
 const EN_US: Translations = {
-  appName: 'Waste Monitoring',
+  appName: 'Monowa',
   appSubtitle: 'Facility Waste Management System',
   home: 'Home',
   dashboard: 'Home',
@@ -332,13 +332,13 @@ const EN_US: Translations = {
 
 const EN_UK: Translations = {
   ...EN_US,
-  appName: 'Waste Monitoring',
+  appName: 'Monowa',
   appSubtitle: 'Facility Waste Management System',
   color: 'colour',
 }
 
 const ZH: Translations = {
-  appName: '废物监控系统',
+  appName: 'Monowa',
   appSubtitle: '设施废物管理系统',
   dashboard: '仪表板',
   b3Waste: '危险废物 (B3)',
@@ -448,7 +448,7 @@ const ZH: Translations = {
 }
 
 const AR: Translations = {
-  appName: 'مراقبة النفايات',
+  appName: 'Monowa',
   appSubtitle: 'نظام إدارة نفايات المنشأة',
   dashboard: 'لوحة التحكم',
   b3Waste: 'النفايات الخطرة (B3)',
@@ -542,7 +542,7 @@ const AR: Translations = {
 }
 
 const JA: Translations = {
-  appName: '廃棄物監視システム',
+  appName: 'Monowa',
   appSubtitle: '施設廃棄物管理システム',
   dashboard: 'ダッシュボード',
   b3Waste: '有害廃棄物 (B3)',
@@ -637,7 +637,7 @@ const JA: Translations = {
 
 const ID_OLD: Translations = {
   ...ID,
-  appName: 'Pemantauan Limbah',
+  appName: 'Monowa',
   appSubtitle: 'Stelsel Pengawasan Limbah Gedoeng',
   dashboard: 'Papan Pemoeda',
   b3Waste: 'Sampah Berbahaja (B3)',
@@ -668,7 +668,7 @@ const ID_OLD: Translations = {
 
 const NL: Translations = {
   ...EN_US,
-  appName: 'Afvalmonitoring',
+  appName: 'Monowa',
   appSubtitle: 'Faciliteitsafvalbeheer Systeem',
   dashboard: 'Dashboard',
   b3Waste: 'Gevaarlijk Afval (B3)',
@@ -694,7 +694,7 @@ const NL: Translations = {
 
 const FR: Translations = {
   ...EN_US,
-  appName: 'Surveillance des Déchets',
+  appName: 'Monowa',
   appSubtitle: "Système de Gestion des Déchets d'Installation",
   dashboard: 'Tableau de Bord',
   b3Waste: 'Déchets Dangereux (B3)',
@@ -720,7 +720,7 @@ const FR: Translations = {
 
 const PT: Translations = {
   ...EN_US,
-  appName: 'Monitoramento de Resíduos',
+  appName: 'Monowa',
   appSubtitle: 'Sistema de Gestão de Resíduos da Instalação',
   dashboard: 'Painel',
   b3Waste: 'Resíduos Perigosos (B3)',
@@ -746,7 +746,7 @@ const PT: Translations = {
 
 const ES: Translations = {
   ...EN_US,
-  appName: 'Monitoreo de Residuos',
+  appName: 'Monowa',
   appSubtitle: 'Sistema de Gestión de Residuos de Instalaciones',
   dashboard: 'Panel de Control',
   b3Waste: 'Residuos Peligrosos (B3)',

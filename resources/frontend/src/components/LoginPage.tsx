@@ -153,7 +153,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: tokens.text }}>
-            Sistem Monitoring Limbah
+            Monowa Portal
           </h1>
           <p style={{ fontSize: '12px', fontWeight: 500, marginTop: '4px', color: tokens.textMuted, display: 'flex', alignItems: 'center', gap: '4px' }}>
             Environmental Health & Safety (EHS) Portal

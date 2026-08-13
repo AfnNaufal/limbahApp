@@ -1,6 +1,6 @@
-# Limbah App - Monitoring Limbah EHS
+# Monowa - Smart Waste & EHS Monitoring System
 
-Sistem pemantauan limbah fasilitas B3 dan domestik dengan dashboard real-time yang dibangun menggunakan **Laravel 11 + React 19 + Tailwind CSS v4**. Sistem ini mengintegrasikan frontend React dengan REST API Laravel & Database MySQL secara terpusat.
+Sistem pemantauan dan pengelolaan limbah fasilitas (B3 & Domestik) dengan dashboard real-time yang dibangun menggunakan **Laravel 11 + React 19 + Tailwind CSS v4**. Sistem ini mengintegrasikan frontend React dengan REST API Laravel & Database MySQL secara terpusat.
 
 ## 📋 Requirement
 

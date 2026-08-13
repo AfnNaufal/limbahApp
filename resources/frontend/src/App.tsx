@@ -113,7 +113,7 @@ function App() {
 
   useEffect(() => {
     setMounted(true)
-    document.title = 'Sistem Pemantauan Limbah'
+    document.title = 'Monowa - Smart Waste Monitoring'
   }, [])
 
   if (!mounted) return null

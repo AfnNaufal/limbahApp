@@ -85,10 +85,10 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
           >
             {tokens.neonGlow ? (
               <span style={{ color: tokens.primary, textShadow: tokens.neonGlow }}>
-                Monitoring Limbah
+                MONOWA
               </span>
             ) : (
-              'Monitoring Limbah'
+              'MONOWA'
             )}
           </div>
           <div
@@ -99,7 +99,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
               letterSpacing: '0.3px',
             }}
           >
-            Sistem Pemantauan Limbah Fasilitas
+            Sistem Pemantauan & Pengelolaan Limbah
           </div>
           <div
             style={{

@@ -71,7 +71,7 @@ export function exportToPrintPDF(
     <body>
       <div class="header">
         <div>
-          <h1 class="header-title">EHS LIMBAHAPP</h1>
+          <h1 class="header-title">MONOWA - EHS WASTE MANAGEMENT</h1>
           <div class="header-sub">${title}</div>
         </div>
         <div class="meta">
@@ -97,7 +97,7 @@ export function exportToPrintPDF(
       </table>
 
       <div class="footer">
-        <div>Dicetak secara otomatis oleh Sistem EHS LimbahApp.</div>
+        <div>Dicetak secara otomatis oleh Sistem Monowa EHS.</div>
         <div class="signature-box">
           <div>Petugas Penanggung Jawab,</div>
           <div class="signature-space"></div>

@@ -235,9 +235,9 @@ export default function Sidebar() {
           {!collapsed && (
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', lineHeight: 1.2, fontFamily: tokens.fontFamily }}>
-                {isNight ? <span style={{ color: tokens.primary, textShadow: tokens.neonGlow }}>Monitoring</span> : 'Monitoring'}
+                {isNight ? <span style={{ color: tokens.primary, textShadow: tokens.neonGlow }}>Monowa</span> : 'Monowa'}
               </div>
-              <div style={{ fontSize: 11, color: tokens.sidebarText, fontFamily: tokens.fontFamily }}>Limbah EHS</div>
+              <div style={{ fontSize: 11, color: tokens.sidebarText, fontFamily: tokens.fontFamily }}>Waste & EHS System</div>
             </div>
           )}
         </div>
