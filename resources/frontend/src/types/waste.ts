@@ -3,6 +3,9 @@ export type WasteSession = 'MORNING' | 'AFTERNOON' | 'morning' | 'afternoon'
 export type WasteMovementType = 'IN' | 'OUT'
 export type WasteCategoryType = 'b3in' | 'b3out' | 'domMorning' | 'domAfternoon'
 
+/**
+ * Data model for B3 Waste Transaction DTO
+ */
 export interface B3TransactionData {
   id: number | string
   rawId?: number
@@ -23,18 +26,25 @@ export interface B3TransactionData {
   weight_kg?: number | string
   amountKg?: number
   weightKg?: number
+  remaining_weight_kg?: number | string | null
   status?: string | null
   storage_deadline_at?: string | null
   storageDeadlineDays?: number
   storageCapacityKg?: number
   currentStorageKg?: number
+  scale_photo_path?: string | null
   scale_photo_url?: string | null
   scalePhotoUrl?: string | null
   notes?: string | null
+  created_by?: number | null
+  updated_by?: number | null
   created_at?: string
   updated_at?: string
 }
 
+/**
+ * Data model for Domestic Waste Transaction DTO
+ */
 export interface DomesticTransactionData {
   id: number | string
   rawId?: number
@@ -71,10 +81,15 @@ export interface DomesticTransactionData {
   picName?: string
   pic_phone?: string | null
   notes?: string | null
+  created_by?: number | null
+  updated_by?: number | null
   created_at?: string
   updated_at?: string
 }
 
+/**
+ * Data model for App Notifications
+ */
 export interface AppNotification {
   id: number | string
   type: string
@@ -89,10 +104,19 @@ export interface AppNotification {
   created_at?: string
 }
 
+/**
+ * Storage Alert Item with deadline calculation
+ */
 export interface StorageAlertItem extends B3TransactionData {
+  alertId?: number
   urgency: 'exceeded' | 'warning' | 'ok'
+  daysRemaining?: number
+  deadlineFormatted?: string
 }
 
+/**
+ * Standard Paginated Response DTO
+ */
 export interface PaginatedResponse<T> {
   data: T[]
   current_page?: number

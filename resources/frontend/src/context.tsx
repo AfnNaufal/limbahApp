@@ -197,16 +197,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    getSystemSettings()
-      .then((data) => {
-        if (data.theme) setTheme(data.theme as ThemeId)
-        if (data.mode) setMode(data.mode as ModeId)
-        if (data.lang) setLang(data.lang as LangId)
-      })
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
     const handleHashChange = () => {
       const newPage = getPageFromHash()
       setPageState(newPage)

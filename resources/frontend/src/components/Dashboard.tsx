@@ -9,11 +9,6 @@ import {
   type DashboardSummaryData, type DashboardTrendItem, type CategoryBreakdownItem,
 } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
-import {
-  MONTHLY_B3_IN, MONTHLY_B3_OUT, MONTHLY_DOM_AFTERNOON, MONTHLY_DOM_MORNING,
-  PIE_B3_IN, PIE_B3_OUT, PIE_DOM_AFTERNOON, PIE_DOM_MORNING, SUMMARY_STATS,
-  WEEKLY_B3_IN, WEEKLY_B3_OUT, WEEKLY_DOM_AFTERNOON, WEEKLY_DOM_MORNING,
-} from '../data'
 
 type TrendPeriod = 'weekly' | 'monthly' | 'yearly'
 
@@ -59,7 +54,7 @@ function CardStat({ value, label, change, tokens }: CardStatProps) {
         }}>
           {isIncreasing ? '▲' : '▼'} {Math.abs(change)}%
         </span>
-        <span style={{ fontSize: 11, color: tokens.textMuted }}>dari periode lalu</span>
+        <span style={{ fontSize: 11, color: tokens.textMuted }}>tren periode</span>
       </div>
 
       <div style={{ fontSize: 12, color: tokens.textMuted }}>{label}</div>
@@ -123,9 +118,9 @@ function TrendToggle({ value, onChange, tokens }: TrendToggleProps) {
   const { t } = useApp()
   const options: TrendPeriod[] = ['weekly', 'monthly', 'yearly']
   const labels: Record<TrendPeriod, string> = {
-    weekly: t('weekly'),
-    monthly: t('monthly'),
-    yearly: t('yearly'),
+    weekly: t('weekly', 'Mingguan'),
+    monthly: t('monthly', 'Bulanan'),
+    yearly: t('yearly', 'Tahunan'),
   }
 
   return (
@@ -175,9 +170,7 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
       ? config.monthlyData
       : trendPeriod === 'weekly'
         ? config.weeklyData
-        : config.monthlyData
-            .map((item, index) => ({ ...item, name: String(2020 + index) }))
-            .slice(0, 5)
+        : config.monthlyData.slice(-5)
 
   const tooltipStyle = {
     contentStyle: {
@@ -203,27 +196,27 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
           {config.labelKey}
         </h2>
         <div style={{ fontSize: 12, color: tokens.textMuted }}>
-          {config.stats.entries} {t('entries')}
+          {config.stats.entries} {t('entries', 'entri')}
         </div>
       </div>
 
       {/* Row: summary card + bar + pie + trend */}
       <div style={{ display: 'grid', gridTemplateColumns: rowColumns, gap: 12 }}>
-        <ChartCard title={t('summary')} tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title={t('summary', 'Ringkasan')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: `${config.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ width: 16, height: 16, borderRadius: '50%', background: config.color }} />
             </div>
             <CardStat
               value={config.stats.total}
-              label={`${config.stats.entries} ${t('transactions')}`}
+              label={`${config.stats.entries} ${t('transactions', 'transaksi')}`}
               change={config.stats.change}
               tokens={tokens}
             />
           </div>
         </ChartCard>
 
-        <ChartCard title={t('barChart')} tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title={t('barChart', 'Grafik Batang')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <ResponsiveContainer width="100%" height={120}>
             <BarChart data={config.barData} barSize={14} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
@@ -239,10 +232,18 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t('distribution')} tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title={t('distribution', 'Distribusi')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <ResponsiveContainer width="100%" height={120}>
             <PieChart>
-              <Pie data={config.pieData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} dataKey="value" paddingAngle={2}>
+              <Pie
+                data={config.pieData.length > 0 ? config.pieData : [{ name: 'Belum ada data', value: 1 }]}
+                cx="50%"
+                cy="50%"
+                innerRadius={30}
+                outerRadius={50}
+                dataKey="value"
+                paddingAngle={2}
+              >
                 {config.pieData.map((_, index) => {
                   const pieColors = [config.color, tokens.accent, tokens.warning, tokens.success, '#a78bfa', '#fb923c']
                   return <Cell key={`${config.id}-${index}`} fill={pieColors[index % pieColors.length]} />
@@ -253,7 +254,7 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t('trend')} tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title={t('trend', 'Tren')} tokens={tokens} onClick={() => onCardClick(config.id)}>
           <TrendToggle value={trendPeriod} onChange={setTrendPeriod} tokens={tokens} />
           <ResponsiveContainer width="100%" height={96}>
             <LineChart data={trendData} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
@@ -277,30 +278,16 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
 }
 
 interface QuickPreviewProps {
-  id: string
+  category: CategoryConfig | null
   onClose: () => void
   onOpenFull: () => void
 }
 
-function QuickPreview({ id, onClose, onOpenFull }: QuickPreviewProps) {
+function QuickPreview({ category, onClose, onOpenFull }: QuickPreviewProps) {
   const { tokens, t, theme } = useApp()
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
-  const labels: Record<string, string> = {
-    b3in: t('b3In'),
-    b3out: t('b3Out'),
-    domMorning: t('domesticOrganic'),
-    domAfternoon: t('domesticInorganic'),
-  }
-
-  const statsById = {
-    b3in: SUMMARY_STATS.b3In,
-    b3out: SUMMARY_STATS.b3Out,
-    domMorning: SUMMARY_STATS.domMorning,
-    domAfternoon: SUMMARY_STATS.domAfternoon,
-  }
-
-  const stats = statsById[id as keyof typeof statsById] ?? SUMMARY_STATS.b3In
+  if (!category) return null
 
   return (
     <div
@@ -330,7 +317,7 @@ function QuickPreview({ id, onClose, onOpenFull }: QuickPreviewProps) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: tokens.text }}>
-            {t('quickPreview')}: {labels[id] ?? id}
+            {t('quickPreview', 'Pratinjau Cepat')}: {category.labelKey}
           </h3>
           <button
             type="button"
@@ -343,10 +330,10 @@ function QuickPreview({ id, onClose, onOpenFull }: QuickPreviewProps) {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
           {[
-            { label: 'Total Berat', value: `${stats.total.toLocaleString('id-ID', { maximumFractionDigits: 1 })} kg` },
-            { label: 'Total Entri', value: String(stats.entries) },
-            { label: 'Perubahan', value: `${stats.change > 0 ? '+' : ''}${stats.change}%` },
-            { label: 'Periode', value: '2024' },
+            { label: 'Total Berat', value: `${category.stats.total.toLocaleString('id-ID', { maximumFractionDigits: 1 })} kg` },
+            { label: 'Total Entri', value: String(category.stats.entries) },
+            { label: 'Perubahan', value: `${category.stats.change >= 0 ? '+' : ''}${category.stats.change}%` },
+            { label: 'Satuan', value: 'kg' },
           ].map(({ label, value }) => (
             <div key={label} style={{ background: tokens.bgSecondary, borderRadius: tokens.radius, padding: 12 }}>
               <div style={{ fontSize: 11, color: tokens.textMuted, marginBottom: 4 }}>{label}</div>
@@ -370,7 +357,7 @@ function QuickPreview({ id, onClose, onOpenFull }: QuickPreviewProps) {
             fontFamily: tokens.fontFamily,
           }}
         >
-          {t('openFullPage')} →
+          {t('openFullPage', 'Buka Halaman Lengkap')} →
         </button>
       </div>
     </div>
@@ -379,7 +366,7 @@ function QuickPreview({ id, onClose, onOpenFull }: QuickPreviewProps) {
 
 export default function Dashboard() {
   const { tokens, setPage, t, year } = useApp()
-  const [preview, setPreview] = useState<string | null>(null)
+  const [previewId, setPreviewId] = useState<string | null>(null)
   const [summaryData, setSummaryData] = useState<DashboardSummaryData | null>(null)
   const [trendsData, setTrendsData] = useState<DashboardTrendItem[] | null>(null)
   const [breakdownData, setBreakdownData] = useState<CategoryBreakdownItem[] | null>(null)
@@ -412,89 +399,92 @@ export default function Dashboard() {
     void loadDashboard()
   }, [year])
 
-  const b3InWeight = summaryData !== null ? Number(summaryData.b3_in_weight_kg ?? 0) : SUMMARY_STATS.b3In.total
-  const b3OutWeight = summaryData !== null ? Number(summaryData.b3_out_weight_kg ?? 0) : SUMMARY_STATS.b3Out.total
-  const domesticOrganicWeight = summaryData !== null ? Number(summaryData.domestic_today_organic_kg ?? 0) : SUMMARY_STATS.domMorning.total
-  const domesticInorganicWeight = summaryData !== null ? Number(summaryData.domestic_today_inorganic_kg ?? 0) : SUMMARY_STATS.domAfternoon.total
+  const b3InWeight = Number(summaryData?.b3_in_weight_kg ?? 0)
+  const b3OutWeight = Number(summaryData?.b3_out_weight_kg ?? 0)
+  const domesticOrganicWeight = Number(summaryData?.domestic_today_organic_kg ?? 0)
+  const domesticInorganicWeight = Number(summaryData?.domestic_today_inorganic_kg ?? 0)
 
-  const monthlyB3In = trendsData !== null
-    ? trendsData.map((t) => ({ name: t.month_name, value: t.b3_in_weight_kg }))
-    : MONTHLY_B3_IN.map((item) => ({ name: item.month, value: item.value }))
+  const defaultMonths: ChartDataItem[] = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+    .map((name) => ({ name, value: 0 }))
 
-  const monthlyB3Out = trendsData !== null
-    ? trendsData.map((t) => ({ name: t.month_name, value: t.b3_out_weight_kg }))
-    : MONTHLY_B3_OUT.map((item) => ({ name: item.month, value: item.value }))
+  const monthlyB3In: ChartDataItem[] = trendsData && trendsData.length > 0
+    ? trendsData.map((item) => ({ name: item.month_name, value: item.b3_in_weight_kg }))
+    : defaultMonths
 
-  const monthlyDomOrganic = trendsData !== null
-    ? trendsData.map((t) => ({ name: t.month_name, value: t.domestic_organic_kg }))
-    : MONTHLY_DOM_MORNING.map((item) => ({ name: item.month, value: item.value }))
+  const monthlyB3Out: ChartDataItem[] = trendsData && trendsData.length > 0
+    ? trendsData.map((item) => ({ name: item.month_name, value: item.b3_out_weight_kg }))
+    : defaultMonths
 
-  const monthlyDomInorganic = trendsData !== null
-    ? trendsData.map((t) => ({ name: t.month_name, value: t.domestic_inorganic_kg }))
-    : MONTHLY_DOM_AFTERNOON.map((item) => ({ name: item.month, value: item.value }))
+  const monthlyDomOrganic: ChartDataItem[] = trendsData && trendsData.length > 0
+    ? trendsData.map((item) => ({ name: item.month_name, value: item.domestic_organic_kg }))
+    : defaultMonths
 
-  const b3PieData = breakdownData !== null && breakdownData.length > 0
+  const monthlyDomInorganic: ChartDataItem[] = trendsData && trendsData.length > 0
+    ? trendsData.map((item) => ({ name: item.month_name, value: item.domestic_inorganic_kg }))
+    : defaultMonths
+
+  const b3PieData: ChartDataItem[] = breakdownData && breakdownData.length > 0
     ? breakdownData.map((b) => ({ name: b.category_name, value: b.total_weight_kg }))
-    : PIE_B3_IN
+    : b3InWeight > 0 ? [{ name: 'Limbah B3 Masuk', value: b3InWeight }] : []
 
   const categories: CategoryConfig[] = [
     {
       id: 'b3in',
-      labelKey: t('b3InTitle'),
+      labelKey: t('b3InTitle', 'Limbah B3 Masuk'),
       color: tokens.chartB3In,
       barData: monthlyB3In,
-      weeklyData: WEEKLY_B3_IN.map((item) => ({ name: item.week, value: item.value })),
+      weeklyData: monthlyB3In.slice(-4),
       monthlyData: monthlyB3In,
       pieData: b3PieData,
       stats: {
         total: b3InWeight,
-        change: SUMMARY_STATS.b3In.change,
-        entries: summaryData?.b3_count_in ?? SUMMARY_STATS.b3In.entries,
+        change: 0,
+        entries: summaryData?.b3_count_in ?? 0,
       },
       unit: 'kg',
     },
     {
       id: 'b3out',
-      labelKey: t('b3OutTitle'),
+      labelKey: t('b3OutTitle', 'Limbah B3 Keluar'),
       color: tokens.chartB3Out,
       barData: monthlyB3Out,
-      weeklyData: WEEKLY_B3_OUT.map((item) => ({ name: item.week, value: item.value })),
+      weeklyData: monthlyB3Out.slice(-4),
       monthlyData: monthlyB3Out,
-      pieData: PIE_B3_OUT,
+      pieData: b3OutWeight > 0 ? [{ name: 'B3 Keluar', value: b3OutWeight }] : [],
       stats: {
         total: b3OutWeight,
-        change: SUMMARY_STATS.b3Out.change,
-        entries: summaryData?.b3_count_out ?? SUMMARY_STATS.b3Out.entries,
+        change: 0,
+        entries: summaryData?.b3_count_out ?? 0,
       },
       unit: 'kg',
     },
     {
       id: 'domMorning',
-      labelKey: t('domesticOrganicTitle'),
+      labelKey: t('domesticOrganicTitle', 'Limbah Domestik Organik (Pagi)'),
       color: tokens.chartDomMorning,
       barData: monthlyDomOrganic,
-      weeklyData: WEEKLY_DOM_MORNING.map((item) => ({ name: item.week, value: item.value })),
+      weeklyData: monthlyDomOrganic.slice(-4),
       monthlyData: monthlyDomOrganic,
-      pieData: PIE_DOM_MORNING,
+      pieData: domesticOrganicWeight > 0 ? [{ name: 'Organik', value: domesticOrganicWeight }] : [],
       stats: {
         total: domesticOrganicWeight,
-        change: SUMMARY_STATS.domMorning.change,
-        entries: SUMMARY_STATS.domMorning.entries,
+        change: 0,
+        entries: summaryData?.domestic_today_organic_kg ? 1 : 0,
       },
       unit: 'kg',
     },
     {
       id: 'domAfternoon',
-      labelKey: t('domesticInorganicTitle'),
+      labelKey: t('domesticInorganicTitle', 'Limbah Domestik Anorganik (Sore)'),
       color: tokens.chartDomAfternoon,
       barData: monthlyDomInorganic,
-      weeklyData: WEEKLY_DOM_AFTERNOON.map((item) => ({ name: item.week, value: item.value })),
+      weeklyData: monthlyDomInorganic.slice(-4),
       monthlyData: monthlyDomInorganic,
-      pieData: PIE_DOM_AFTERNOON,
+      pieData: domesticInorganicWeight > 0 ? [{ name: 'Anorganik', value: domesticInorganicWeight }] : [],
       stats: {
         total: domesticInorganicWeight,
-        change: SUMMARY_STATS.domAfternoon.change,
-        entries: SUMMARY_STATS.domAfternoon.entries,
+        change: 0,
+        entries: summaryData?.domestic_today_inorganic_kg ? 1 : 0,
       },
       unit: 'kg',
     },
@@ -505,10 +495,12 @@ export default function Dashboard() {
 
   const connectionColor = loading ? '#f59e0b' : apiError ? '#ef4444' : '#22c55e'
   const connectionText = loading
-    ? t('connectingDatabase')
+    ? t('connectingDatabase', 'Memuat data...')
     : apiError
-      ? 'Gagal terhubung ke API. Data dummy ditampilkan.'
-      : t('databaseConnected')
+      ? 'Gagal terhubung ke API'
+      : t('databaseConnected', 'Terhubung ke Database')
+
+  const activePreviewCategory = categories.find((c) => c.id === previewId) ?? null
 
   return (
     <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
@@ -619,14 +611,14 @@ export default function Dashboard() {
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: kpiColumns, gap: 12, marginBottom: 28 }}>
         {[
-          { id: 'b3in', label: t('b3In'), value: b3InWeight, change: SUMMARY_STATS.b3In.change, color: tokens.chartB3In },
-          { id: 'b3out', label: t('b3Out'), value: b3OutWeight, change: SUMMARY_STATS.b3Out.change, color: tokens.chartB3Out },
-          { id: 'domMorning', label: t('domesticOrganic'), value: domesticOrganicWeight, change: SUMMARY_STATS.domMorning.change, color: tokens.chartDomMorning },
-          { id: 'domAfternoon', label: t('domesticInorganic'), value: domesticInorganicWeight, change: SUMMARY_STATS.domAfternoon.change, color: tokens.chartDomAfternoon },
+          { id: 'b3in', label: t('b3In', 'B3 Masuk'), value: b3InWeight, change: 0, color: tokens.chartB3In },
+          { id: 'b3out', label: t('b3Out', 'B3 Keluar'), value: b3OutWeight, change: 0, color: tokens.chartB3Out },
+          { id: 'domMorning', label: t('domesticOrganic', 'Domestik Organik'), value: domesticOrganicWeight, change: 0, color: tokens.chartDomMorning },
+          { id: 'domAfternoon', label: t('domesticInorganic', 'Domestik Anorganik'), value: domesticInorganicWeight, change: 0, color: tokens.chartDomAfternoon },
         ].map(({ id, label, value, change, color }) => (
           <div
             key={id}
-            onClick={() => setPreview(id)}
+            onClick={() => setPreviewId(id)}
             style={{
               background: tokens.card,
               border: `1px solid ${tokens.cardBorder}`,
@@ -658,7 +650,7 @@ export default function Dashboard() {
               }}>
                 {change >= 0 ? '▲' : '▼'} {Math.abs(change)}%
               </span>
-              <span style={{ fontSize: 11, color: tokens.textMuted }}>vs 2023</span>
+              <span style={{ fontSize: 11, color: tokens.textMuted }}>tahun {year}</span>
             </div>
           </div>
         ))}
@@ -669,17 +661,17 @@ export default function Dashboard() {
           key={category.id}
           config={category}
           tokens={tokens}
-          onCardClick={setPreview}
+          onCardClick={setPreviewId}
         />
       ))}
 
-      {preview && (
+      {previewId && (
         <QuickPreview
-          id={preview}
-          onClose={() => setPreview(null)}
+          category={activePreviewCategory}
+          onClose={() => setPreviewId(null)}
           onOpenFull={() => {
-            const destination = preview.startsWith('b3') ? 'b3' : 'domestic'
-            setPreview(null)
+            const destination = previewId.startsWith('b3') ? 'b3' : 'domestic'
+            setPreviewId(null)
             setPage(destination)
           }}
         />

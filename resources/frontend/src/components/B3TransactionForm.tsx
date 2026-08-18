@@ -82,6 +82,7 @@ export default function B3TransactionForm({
     const [isCompressing, setIsCompressing] = useState(false);
     const [compressionInfo, setCompressionInfo] =
         useState<CompressionResult | null>(null);
+    const [showFullPreview, setShowFullPreview] = useState(false);
 
     const [message, setMessage] = useState<{
         type: MessageType;
@@ -172,8 +173,8 @@ export default function B3TransactionForm({
     ): Promise<void> {
         const selectedFile = event.target.files?.[0];
 
+        // Jika user membatalkan dialog pemilihan file, jangan hapus foto yang sudah ada sebelumnya
         if (!selectedFile) {
-            clearPhoto();
             return;
         }
 
@@ -206,7 +207,6 @@ export default function B3TransactionForm({
                         ? error.message
                         : 'Gagal mengompresi foto.',
             });
-            clearPhoto();
         } finally {
             setIsCompressing(false);
         }
@@ -217,6 +217,7 @@ export default function B3TransactionForm({
             URL.revokeObjectURL(compressionInfo.previewUrl);
         }
         setCompressionInfo(null);
+        setShowFullPreview(false);
         setForm((previous) => ({
             ...previous,
             scale_photo: null,
@@ -517,7 +518,7 @@ export default function B3TransactionForm({
 
                         <Field
                             label="Foto timbangan"
-                            hint="Upload foto bukti timbangan (otomatis dioptimalkan ke WebP)."
+                            hint="Foto bukti timbangan fisik (otomatis dioptimalkan ke WebP)."
                         >
                             <input
                                 ref={fileInputRef}
@@ -530,7 +531,7 @@ export default function B3TransactionForm({
                         </Field>
                     </Grid>
 
-                    {/* Status Proses Kompresi */}
+                    {/* Status Indikator Proses Kompresi */}
                     {isCompressing && (
                         <div
                             style={{
@@ -546,16 +547,29 @@ export default function B3TransactionForm({
                                 color: tokens.text,
                             }}
                         >
-                            <span
+                            <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke={tokens.primary}
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
                                 style={{
-                                    display: 'inline-block',
-                                    animation: 'spin 1s linear infinite',
-                                    fontSize: 16,
+                                    animation: 'spin 0.8s linear infinite',
                                 }}
                             >
-                                ⏳
-                            </span>
-                            <span>Mengompresi dan mengoptimalkan gambar di perangkat...</span>
+                                <line x1="12" y1="2" x2="12" y2="6" />
+                                <line x1="12" y1="18" x2="12" y2="22" />
+                                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
+                                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
+                                <line x1="2" y1="12" x2="6" y2="12" />
+                                <line x1="18" y1="12" x2="22" y2="12" />
+                                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
+                                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
+                            </svg>
+                            <span>Mengompresi dan mengoptimalkan gambar...</span>
                         </div>
                     )}
 
@@ -586,12 +600,16 @@ export default function B3TransactionForm({
                                 <img
                                     src={compressionInfo.previewUrl}
                                     alt="Pratinjau Timbangan"
+                                    onClick={() => setShowFullPreview(true)}
+                                    title="Klik untuk melihat pratinjau penuh"
                                     style={{
                                         width: 52,
                                         height: 52,
                                         borderRadius: 6,
                                         objectFit: 'cover',
                                         border: `1px solid ${tokens.cardBorder}`,
+                                        cursor: 'pointer',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                                     }}
                                 />
                                 <div style={{ minWidth: 0 }}>
@@ -641,6 +659,22 @@ export default function B3TransactionForm({
                                             {compressionInfo.compressedSizeFormatted} (-
                                             {compressionInfo.savedPercentage}%)
                                         </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowFullPreview(true)}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: tokens.primary,
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                padding: 0,
+                                                textDecoration: 'underline',
+                                            }}
+                                        >
+                                            Lihat Foto
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -665,6 +699,84 @@ export default function B3TransactionForm({
                         </div>
                     )}
                 </FormCard>
+
+                {/* Modal Pratinjau Foto Penuh */}
+                {showFullPreview && compressionInfo && (
+                    <div
+                        onClick={() => setShowFullPreview(false)}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0, 0, 0, 0.75)',
+                            zIndex: 9999,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: 16,
+                        }}
+                    >
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                background: tokens.card,
+                                border: `1px solid ${tokens.cardBorder}`,
+                                borderRadius: tokens.radius,
+                                padding: 16,
+                                maxWidth: '90vw',
+                                maxHeight: '90vh',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: 12,
+                                boxShadow: tokens.shadow,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 14,
+                                    fontWeight: 600,
+                                    color: tokens.text,
+                                    width: '100%',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <span>Pratinjau Bukti Timbangan (Terkompresi)</span>
+                                <span style={{ fontSize: 12, color: tokens.textMuted }}>
+                                    {compressionInfo.width} × {compressionInfo.height} px (
+                                    {compressionInfo.compressedSizeFormatted})
+                                </span>
+                            </div>
+                            <img
+                                src={compressionInfo.previewUrl}
+                                alt="Foto Timbangan Penuh"
+                                style={{
+                                    maxWidth: '100%',
+                                    maxHeight: '70vh',
+                                    borderRadius: 6,
+                                    objectFit: 'contain',
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowFullPreview(false)}
+                                style={{
+                                    padding: '8px 18px',
+                                    background: tokens.primary,
+                                    color: tokens.textInverse,
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    fontWeight: 600,
+                                    fontSize: 13,
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Tutup Pratinjau
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 <FormCard title="Keterangan">
                     <Field label="Catatan">

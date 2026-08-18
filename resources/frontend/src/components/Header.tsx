@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp, type PageId } from '../context'
-import { NOTIFICATIONS } from '../data'
 import { getNotifications } from '../api'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import NotificationPanel, { type DisplayNotification } from './header/NotificationPanel'
@@ -37,21 +36,12 @@ export default function Header() {
   const notifRef = useRef<HTMLDivElement>(null)
   const isMobile = useIsMobile()
 
-  const [notes, setNotes] = useState<DisplayNotification[]>(
-    NOTIFICATIONS.map((n) => ({
-      id: n.id,
-      type: n.type,
-      title: n.title,
-      message: n.message,
-      read: Boolean(n.read),
-      timestamp: n.timestamp ?? new Date().toISOString(),
-    }))
-  )
+  const [notes, setNotes] = useState<DisplayNotification[]>([])
 
   const fetchLatestNotifications = () => {
     getNotifications({ include_read: true, per_page: 20 })
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setNotes(
             data.map((n) => ({
               id: n.id,
@@ -65,7 +55,7 @@ export default function Header() {
         }
       })
       .catch(() => {
-        // Safe fallback to initial state
+        // Safe fallback
       })
   }
 

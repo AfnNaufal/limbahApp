@@ -8,10 +8,6 @@ import { useToast } from '../context/ToastContext'
 import { getB3Transactions, updateB3Transaction, deleteB3Transaction } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import { useDebounce } from '../hooks/useDebounce'
-import {
-  B3_TRANSACTIONS, MONTHLY_B3_IN, MONTHLY_B3_OUT,
-  PIE_B3_IN, PIE_B3_OUT, STORAGE_ALERTS, NOTIFICATIONS,
-} from '../data'
 import EmptyState from './EmptyState'
 import SkeletonLoader from './SkeletonLoader'
 import B3StorageAlerts from './b3/B3StorageAlerts'
@@ -73,7 +69,29 @@ export default function B3Page() {
         return { id: tx.id, type, title, message, timestamp }
       })
     }
-    return NOTIFICATIONS.filter((n) => n.type === 'b3in' || n.type === 'b3out' || n.type === 'alert')
+    return []
+  }, [apiData])
+
+  const computedStorageAlerts = useMemo(() => {
+    if (!apiData || apiData.length === 0) return []
+    const now = new Date()
+    return apiData
+      .filter((tx) => (tx.category === 'b3in' || tx.transaction_type === 'IN') && tx.storage_deadline_at)
+      .map((tx) => {
+        const deadline = new Date(tx.storage_deadline_at)
+        const diffTime = deadline.getTime() - now.getTime()
+        const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        const urgency: 'exceeded' | 'warning' | 'ok' =
+          daysRemaining < 0 ? 'exceeded' : daysRemaining <= 30 ? 'warning' : 'ok'
+        return {
+          ...tx,
+          storageDeadlineDays: daysRemaining,
+          urgency,
+          daysRemaining,
+        }
+      })
+      .filter((item) => item.urgency !== 'ok')
+      .slice(0, 6)
   }, [apiData])
 
   const fetchData = () => {
@@ -297,7 +315,7 @@ export default function B3Page() {
     <div style={{ padding: isMobile ? '16px' : '20px 24px', overflowY: 'auto', flex: 1, fontFamily: tokens.fontFamily }}>
 
       {/* Storage alerts */}
-      <B3StorageAlerts alerts={STORAGE_ALERTS as any} />
+      <B3StorageAlerts alerts={computedStorageAlerts} />
 
       {/* Error Alert Banner with Retry */}
       {apiError && (

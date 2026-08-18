@@ -12,26 +12,25 @@ class CheckB3Alerts extends Command
      *
      * @var string
      */
-    protected $signature = 'limbah:check-alerts {--days=7 : Days before deadline to trigger warning}';
+    protected $signature = 'limbah:check-alerts';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Check and generate storage alert notifications for B3 transactions approaching deadline';
+    protected $description = 'Periksa tenggat waktu penyimpanan limbah B3 dan terbitkan notifikasi peringatan';
 
     /**
      * Execute the console command.
      */
     public function handle(B3TransactionService $service): int
     {
-        $days = (int) $this->option('days');
-        $this->info("Checking B3 waste storage deadlines (threshold: {$days} days)...");
+        $this->info('Memeriksa masa simpan limbah B3 (H-30, H-7, Expired)...');
 
-        $alertsCreated = $service->checkAndCreateStorageAlerts($days);
+        $alertsCreated = $service->checkAndCreateStorageAlerts();
 
-        $this->info("Completed. {$alertsCreated} new storage alert(s) generated.");
+        $this->info("Pengecekan selesai. {$alertsCreated} peringatan baru diterbitkan.");
 
         return Command::SUCCESS;
     }

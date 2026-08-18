@@ -2,17 +2,16 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'role', 'phone', 'department', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -29,6 +28,33 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRole::class,
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === UserRole::ADMIN_EHS;
+    }
+
+    public function isOperator(): bool
+    {
+        return $this->role === UserRole::OPERATOR_TPS;
+    }
+
+    public function isAuditor(): bool
+    {
+        return $this->role === UserRole::AUDITOR;
+    }
+
+    public function canDeleteTransactions(): bool
+    {
+        return $this->role === UserRole::ADMIN_EHS;
+    }
+
+    public function canCreateTransactions(): bool
+    {
+        return in_array($this->role, [UserRole::ADMIN_EHS, UserRole::OPERATOR_TPS]);
     }
 }

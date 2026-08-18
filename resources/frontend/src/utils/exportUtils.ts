@@ -23,6 +23,16 @@ export function exportToCSV(filename: string, headers: string[], rows: (string |
   URL.revokeObjectURL(url)
 }
 
+function escapeHtml(value: string | number | null | undefined): string {
+  const str = String(value ?? '')
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 export function exportToPrintPDF(
   title: string,
   periodLabel: string,
@@ -41,12 +51,16 @@ export function exportToPrintPDF(
     year: 'numeric',
   })
 
+  const safeTitle = escapeHtml(title)
+  const safePeriod = escapeHtml(periodLabel)
+  const safeDate = escapeHtml(currentDate)
+
   const html = `
     <!DOCTYPE html>
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>${title}</title>
+      <title>${safeTitle}</title>
       <style>
         @page { size: A4 portrait; margin: 15mm; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; margin: 0; padding: 20px; font-size: 12px; }
@@ -72,11 +86,11 @@ export function exportToPrintPDF(
       <div class="header">
         <div>
           <h1 class="header-title">MONOWA - EHS WASTE MANAGEMENT</h1>
-          <div class="header-sub">${title}</div>
+          <div class="header-sub">${safeTitle}</div>
         </div>
         <div class="meta">
-          <div><strong>Periode:</strong> ${periodLabel}</div>
-          <div><strong>Tanggal Cetak:</strong> ${currentDate}</div>
+          <div><strong>Periode:</strong> ${safePeriod}</div>
+          <div><strong>Tanggal Cetak:</strong> ${safeDate}</div>
         </div>
       </div>
 
@@ -88,11 +102,11 @@ export function exportToPrintPDF(
       <table>
         <thead>
           <tr>
-            ${headers.map((h) => `<th>${h}</th>`).join('')}
+            ${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
-          ${rows.map((row) => `<tr>${row.map((c) => `<td>${c ?? '-'}</td>`).join('')}</tr>`).join('')}
+          ${rows.map((row) => `<tr>${row.map((c) => `<td>${escapeHtml(c ?? '-')}</td>`).join('')}</tr>`).join('')}
         </tbody>
       </table>
 

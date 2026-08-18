@@ -35,10 +35,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('waste-categories', WasteCategoryController::class)
         ->only(['index', 'show']);
 
-    // B3 Transactions (full CRUD)
+    // B3 Transactions (Delete restricted to ADMIN_EHS)
+    Route::delete('b3-transactions/{b3_transaction}', [B3TransactionController::class, 'destroy'])
+        ->middleware('role:ADMIN_EHS');
     Route::apiResource('b3-transactions', B3TransactionController::class);
 
-    // Domestic Transactions (full CRUD)
+    // Domestic Transactions (Delete restricted to ADMIN_EHS)
+    Route::delete('domestic-transactions/{domestic_transaction}', [DomesticTransactionController::class, 'destroy'])
+        ->middleware('role:ADMIN_EHS');
     Route::apiResource('domestic-transactions', DomesticTransactionController::class);
 
     // Notifications
@@ -47,16 +51,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{notification}/read', [NotificationController::class, 'markAsRead']);
     });
 
-    // System Settings
+    // System Settings (Restricted to ADMIN_EHS)
     Route::prefix('settings')->group(function () {
         Route::get('/', [SystemSettingController::class, 'index']);
-        Route::post('/', [SystemSettingController::class, 'update']);
+        Route::post('/', [SystemSettingController::class, 'update'])->middleware('role:ADMIN_EHS');
     });
 
     // Dashboard & Analytics
     Route::prefix('dashboard')->group(function () {
         Route::get('/summary', [DashboardController::class, 'summary']);
         Route::get('/alerts', [DashboardController::class, 'alerts']);
+        Route::post('/alerts/{alert}/acknowledge', [DashboardController::class, 'acknowledgeAlert']);
         Route::get('/health', [DashboardController::class, 'health']);
         Route::get('/near-deadline-warnings', [DashboardController::class, 'nearDeadlineWarnings']);
         Route::get('/expired-warnings', [DashboardController::class, 'expiredWarnings']);

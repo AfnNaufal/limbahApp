@@ -8,10 +8,6 @@ import { useToast } from '../context/ToastContext'
 import { getDomesticTransactions, updateDomesticTransaction, deleteDomesticTransaction } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import { useDebounce } from '../hooks/useDebounce'
-import {
-  DOMESTIC_TRANSACTIONS, MONTHLY_DOM_MORNING, MONTHLY_DOM_AFTERNOON,
-  PIE_DOM_MORNING, PIE_DOM_AFTERNOON, NOTIFICATIONS,
-} from '../data'
 import EmptyState from './EmptyState'
 import SkeletonLoader from './SkeletonLoader'
 import DomesticFilterBar from './domestic/DomesticFilterBar'
@@ -67,7 +63,7 @@ export default function DomesticPage() {
         return { id: tx.id, type: 'domestic', title, message, timestamp }
       })
     }
-    return NOTIFICATIONS.filter((n) => n.type === 'domestic')
+    return []
   }, [apiData])
 
   const fetchData = () => {

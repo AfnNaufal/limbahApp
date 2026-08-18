@@ -106,4 +106,19 @@ class DashboardController
             'categories' => $breakdown,
         ]);
     }
+
+    /**
+     * Acknowledge a storage alert
+     */
+    public function acknowledgeAlert(Request $request, \App\Models\StorageAlert $alert): JsonResponse
+    {
+        $userName = auth()->user()?->name ?? $request->input('acknowledged_by', 'Petugas EHS');
+        $alert->acknowledge($userName);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Peringatan masa simpan telah ditandai sebagai ditindaklanjuti.',
+            'data' => $alert,
+        ]);
+    }
 }

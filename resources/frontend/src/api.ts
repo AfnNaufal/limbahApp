@@ -207,6 +207,35 @@ export async function getDashboardCategoryBreakdown(): Promise<CategoryBreakdown
   return res?.categories ?? [];
 }
 
+export type StorageAlertItemApi = {
+  id: number;
+  alert_type: string;
+  is_active: boolean;
+  deadline_at: string | null;
+  is_expired: boolean;
+  days_until_deadline: number;
+  is_triggered: boolean;
+  triggered_at: string | null;
+  b3_transaction?: {
+    id: number;
+    waste_code: string;
+    waste_name: string;
+    transaction_type: string;
+    weight_kg: number;
+    status: string;
+  } | null;
+};
+
+export async function getDashboardAlerts(): Promise<StorageAlertItemApi[]> {
+  const res = await getApi<{ data: StorageAlertItemApi[] } | StorageAlertItemApi[]>('/api/dashboard/alerts');
+  if (Array.isArray(res)) return res;
+  return res?.data ?? [];
+}
+
+export async function acknowledgeAlertApi(id: number | string, acknowledgedBy?: string): Promise<any> {
+  return postApi(`/api/dashboard/alerts/${id}/acknowledge`, { acknowledged_by: acknowledgedBy });
+}
+
 /* =========================================================
    WASTE CATEGORIES
    ========================================================= */

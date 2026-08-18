@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useApp, getPeriodDateRange } from '../../context'
 import { useIsMobile, useIsTablet } from '../../hooks/useMediaQuery'
 import { getB3Transactions, getDomesticTransactions } from '../../api'
-import { B3_TRANSACTIONS, DOMESTIC_TRANSACTIONS } from '../../data'
 import { exportToCSV, exportToPrintPDF } from '../../utils/exportUtils'
 
 export default function FeatureLaunchpad() {
@@ -43,12 +42,12 @@ export default function FeatureLaunchpad() {
       setIsExporting(true)
       const periodRange = getPeriodDateRange(year, periodFilter)
       const [b3Res, domRes] = await Promise.all([
-        getB3Transactions({ per_page: 300, from: periodRange.from, to: periodRange.to }).catch(() => null),
-        getDomesticTransactions({ per_page: 300, from: periodRange.from, to: periodRange.to }).catch(() => null),
+        getB3Transactions({ per_page: 500, from: periodRange.from, to: periodRange.to }).catch(() => null),
+        getDomesticTransactions({ per_page: 500, from: periodRange.from, to: periodRange.to }).catch(() => null),
       ])
 
-      const b3List = b3Res?.data || B3_TRANSACTIONS
-      const domList = domRes?.data || DOMESTIC_TRANSACTIONS
+      const b3List = b3Res?.data || []
+      const domList = domRes?.data || []
 
       const headers = ['Kategori', 'ID / Ref', 'Tanggal', 'Jenis Limbah', 'Jumlah/Berat (kg)', 'Status / Sesi', 'Keterangan']
       const rows: (string | number)[][] = []

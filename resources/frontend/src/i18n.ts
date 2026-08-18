@@ -785,5 +785,5 @@ export const TRANSLATIONS: Record<LangId, Translations> = {
 }
 
 export function t(lang: LangId, key: string, fallback?: string): string {
-  return TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS['en_us']?.[key] ?? fallback ?? key
+  return TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS['id']?.[key] ?? fallback ?? key
 }

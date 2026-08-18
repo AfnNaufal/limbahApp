@@ -14,10 +14,8 @@ const Dashboard = lazy(() => import('./components/Dashboard'))
 const B3Page = lazy(() => import('./components/B3Page'))
 const DomesticPage = lazy(() => import('./components/DomesticPage'))
 const SettingsPage = lazy(() => import('./components/SettingsPage'))
-const InputB3IncomingPage = lazy(() => import('./components/InputB3IncomingPage'))
-const InputB3OutgoingPage = lazy(() => import('./components/InputB3OutgoingPage'))
-const InputDomesticIncomingPage = lazy(() => import('./components/InputDomesticIncomingPage'))
-const InputDomesticOutgoingPage = lazy(() => import('./components/InputDomesticOutgoingPage'))
+const B3TransactionForm = lazy(() => import('./components/B3TransactionForm'))
+const DomesticWasteForm = lazy(() => import('./components/DomesticWasteForm'))
 
 function MainLayout() {
   const { tokens, page, isRTL, theme } = useApp()
@@ -76,10 +74,10 @@ function MainLayout() {
             {page === 'dashboard' && <HomePage />}
             {page === 'b3' && <B3Page />}
             {page === 'domestic' && <DomesticPage />}
-            {page === 'b3-in' && <InputB3IncomingPage />}
-            {page === 'b3-out' && <InputB3OutgoingPage />}
-            {page === 'waste-in' && <InputDomesticIncomingPage />}
-            {page === 'waste-out' && <InputDomesticOutgoingPage />}
+            {page === 'b3-in' && <B3TransactionForm type="IN" />}
+            {page === 'b3-out' && <B3TransactionForm type="OUT" />}
+            {page === 'waste-in' && <DomesticWasteForm direction="incoming" />}
+            {page === 'waste-out' && <DomesticWasteForm direction="outgoing" />}
             {page === 'settings' && <SettingsPage />}
           </Suspense>
         </main>
@@ -96,6 +94,10 @@ function MainLayout() {
         ::-webkit-scrollbar-thumb:hover { background: ${tokens.textMuted}; }
         input::placeholder { color: ${tokens.textMuted}; opacity: 0.7; }
         input, select, button { font-family: ${tokens.fontFamily}; }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
         ${isNight ? `
           @keyframes neon-pulse {
             0%, 100% { opacity: 1; }

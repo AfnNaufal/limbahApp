@@ -20,12 +20,19 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
+            'role' => 'nullable|string|in:ADMIN_EHS,OPERATOR_TPS,AUDITOR',
+            'department' => 'nullable|string|max:100',
+            'phone' => 'nullable|string|max:30',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => strtolower(trim($validated['email'])),
             'password' => Hash::make($validated['password']),
+            'role' => $validated['role'] ?? 'OPERATOR_TPS',
+            'department' => $validated['department'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'is_active' => true,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
