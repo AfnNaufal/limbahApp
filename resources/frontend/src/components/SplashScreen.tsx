@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useApp } from '../context'
 import logo from '../imports/ehs_logo.png'
 
@@ -6,21 +6,33 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const { tokens } = useApp()
   const [phase, setPhase] = useState<'in' | 'hold' | 'out'>('in')
   const [progress, setProgress] = useState(0)
+  const onDoneRef = useRef(onDone)
+  onDoneRef.current = onDone
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase('hold'), 400)
-    const t2 = setTimeout(() => setPhase('out'), 2200)
-    const t3 = setTimeout(onDone, 2700)
+    const t2 = setTimeout(() => setPhase('out'), 1800)
+    const t3 = setTimeout(() => {
+      onDoneRef.current()
+    }, 2200)
 
     let p = 0
     const interval = setInterval(() => {
-      p += Math.random() * 8 + 2
-      if (p >= 100) { p = 100; clearInterval(interval) }
-      setProgress(p)
-    }, 80)
+      p += Math.random() * 12 + 6
+      if (p >= 100) {
+        p = 100
+        clearInterval(interval)
+      }
+      setProgress(Math.min(100, Math.round(p)))
+    }, 70)
 
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearInterval(interval) }
-  }, [onDone])
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+      clearInterval(interval)
+    }
+  }, [])
 
   const isGrad = tokens.bg.includes('gradient') || tokens.bg.includes('linear')
   const bg = isGrad ? tokens.bg : tokens.bg

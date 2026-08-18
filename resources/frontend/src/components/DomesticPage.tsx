@@ -155,7 +155,7 @@ export default function DomesticPage() {
     }
   }
 
-  const transactionsList = apiData ?? DOMESTIC_TRANSACTIONS
+  const transactionsList = apiData ?? []
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
   const periodTransactions = useMemo(() => {
@@ -187,36 +187,64 @@ export default function DomesticPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
 
   const trendData = useMemo(() => {
-    if (apiData !== null) {
-      const monthMap: Record<string, { morning: number; afternoon: number }> = {}
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-      monthNames.forEach((m) => { monthMap[m] = { morning: 0, afternoon: 0 } })
+    const monthMap: Record<string, { morning: number; afternoon: number }> = {}
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+    monthNames.forEach((m) => { monthMap[m] = { morning: 0, afternoon: 0 } })
 
-      periodTransactions.forEach((tx) => {
-        if (!tx.date) return
-        const monthIdx = new Date(tx.date).getMonth()
-        const monthName = monthNames[monthIdx] || 'Jan'
-        const weight = Number(tx.totalKg ?? tx.total_weight_kg ?? 0)
-        if (tx.session === 'morning' || tx.session === 'MORNING') {
-          monthMap[monthName].morning += weight
-        } else {
-          monthMap[monthName].afternoon += weight
-        }
-      })
+    periodTransactions.forEach((tx) => {
+      if (!tx.date) return
+      const monthIdx = new Date(tx.date).getMonth()
+      const monthName = monthNames[monthIdx] || 'Jan'
+      const weight = Number(tx.totalKg ?? tx.total_weight_kg ?? 0)
+      if (tx.session === 'morning' || tx.session === 'MORNING') {
+        monthMap[monthName].morning += weight
+      } else {
+        monthMap[monthName].afternoon += weight
+      }
+    })
 
-      return monthNames.map((m) => ({
-        name: m,
-        morning: Number(monthMap[m].morning.toFixed(1)),
-        afternoon: Number(monthMap[m].afternoon.toFixed(1)),
-      }))
+    return monthNames.map((m) => ({
+      name: m,
+      morning: Number(monthMap[m].morning.toFixed(1)),
+      afternoon: Number(monthMap[m].afternoon.toFixed(1)),
+    }))
+  }, [periodTransactions])
+
+  const ratioPieData = useMemo(() => {
+    let organic = 0
+    let inorganic = 0
+    periodTransactions.forEach((tx) => {
+      organic += Number(tx.organicKg ?? tx.organic_weight_kg ?? 0)
+      inorganic += Number(tx.inorganicKg ?? tx.inorganic_weight_kg ?? 0)
+    })
+    if (organic === 0 && inorganic === 0) {
+      return [{ name: 'Belum ada data', value: 0 }]
     }
+    return [
+      { name: 'Organik', value: Number(organic.toFixed(1)) },
+      { name: 'Anorganik', value: Number(inorganic.toFixed(1)) },
+    ]
+  }, [periodTransactions])
 
-    return trendPeriod === 'monthly'
-      ? MONTHLY_DOM_MORNING.map((d, i) => ({ name: d.month, morning: d.value, afternoon: MONTHLY_DOM_AFTERNOON[i]?.value ?? 0 }))
-      : trendPeriod === 'yearly'
-        ? YEARLY_DATA
-        : MONTHLY_DOM_MORNING.slice(0, 4).map((d, i) => ({ name: `W${i + 1}`, morning: d.value / 4, afternoon: (MONTHLY_DOM_AFTERNOON[i]?.value ?? 0) / 4 }))
-  }, [apiData, periodTransactions, trendPeriod])
+  const sessionPieData = useMemo(() => {
+    let morning = 0
+    let afternoon = 0
+    periodTransactions.forEach((tx) => {
+      const weight = Number(tx.totalKg ?? tx.total_weight_kg ?? 0)
+      if (tx.session === 'morning' || tx.session === 'MORNING') {
+        morning += weight
+      } else {
+        afternoon += weight
+      }
+    })
+    if (morning === 0 && afternoon === 0) {
+      return [{ name: 'Belum ada data', value: 0 }]
+    }
+    return [
+      { name: 'Pagi', value: Number(morning.toFixed(1)) },
+      { name: 'Sore', value: Number(afternoon.toFixed(1)) },
+    ]
+  }, [periodTransactions])
 
   const tooltipStyle = {
     contentStyle: {
@@ -310,8 +338,8 @@ export default function DomesticPage() {
             </div>
             <ResponsiveContainer width="100%" height={80}>
               <PieChart>
-                <Pie data={PIE_DOM_MORNING} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
-                  {PIE_DOM_MORNING.map((_, i) => (
+                <Pie data={ratioPieData} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
+                  {ratioPieData.map((_, i) => (
                     <Cell key={i} fill={[tokens.chartDomMorning, tokens.chartDomAfternoon][i % 2]!} />
                   ))}
                 </Pie>
@@ -325,8 +353,8 @@ export default function DomesticPage() {
             </div>
             <ResponsiveContainer width="100%" height={80}>
               <PieChart>
-                <Pie data={PIE_DOM_AFTERNOON} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
-                  {PIE_DOM_AFTERNOON.map((_, i) => (
+                <Pie data={sessionPieData} cx="50%" cy="50%" outerRadius={34} dataKey="value" paddingAngle={2}>
+                  {sessionPieData.map((_, i) => (
                     <Cell key={i} fill={[tokens.chartDomMorning, tokens.chartDomAfternoon][i % 2]!} />
                   ))}
                 </Pie>

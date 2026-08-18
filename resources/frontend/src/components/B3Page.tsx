@@ -192,7 +192,7 @@ export default function B3Page() {
     }
   }
 
-  const transactionsList = apiData ?? B3_TRANSACTIONS
+  const transactionsList = apiData ?? []
   const isGlass = theme === 'frosted' || theme === 'liquid'
 
   // Transactions within the active period/search (complete IN & OUT for charts & summary)
@@ -229,64 +229,50 @@ export default function B3Page() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
 
   const trendData = useMemo(() => {
-    if (apiData !== null) {
-      const monthMap: Record<string, { b3in: number; b3out: number }> = {}
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-      monthNames.forEach((m) => { monthMap[m] = { b3in: 0, b3out: 0 } })
+    const monthMap: Record<string, { b3in: number; b3out: number }> = {}
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+    monthNames.forEach((m) => { monthMap[m] = { b3in: 0, b3out: 0 } })
 
-      periodTransactions.forEach((tx) => {
-        if (!tx.date) return
-        const monthIdx = new Date(tx.date).getMonth()
-        const monthName = monthNames[monthIdx] || 'Jan'
-        const weight = Number(tx.amountKg ?? tx.weightKg ?? 0)
-        if (tx.category === 'b3in' || tx.transaction_type === 'IN') {
-          monthMap[monthName].b3in += weight
-        } else {
-          monthMap[monthName].b3out += weight
-        }
-      })
+    periodTransactions.forEach((tx) => {
+      if (!tx.date) return
+      const monthIdx = new Date(tx.date).getMonth()
+      const monthName = monthNames[monthIdx] || 'Jan'
+      const weight = Number(tx.amountKg ?? tx.weightKg ?? 0)
+      if (tx.category === 'b3in' || tx.transaction_type === 'IN') {
+        monthMap[monthName].b3in += weight
+      } else {
+        monthMap[monthName].b3out += weight
+      }
+    })
 
-      return monthNames.map((m) => ({
-        name: m,
-        b3in: Number(monthMap[m].b3in.toFixed(1)),
-        b3out: Number(monthMap[m].b3out.toFixed(1)),
-      }))
-    }
-
-    return trendPeriod === 'monthly'
-      ? MONTHLY_B3_IN.map((d, i) => ({ name: d.month, b3in: d.value, b3out: MONTHLY_B3_OUT[i]?.value ?? 0 }))
-      : trendPeriod === 'yearly'
-        ? YEARLY_DATA
-        : MONTHLY_B3_IN.slice(0, 4).map((d, i) => ({ name: `W${i + 1}`, b3in: d.value / 4, b3out: (MONTHLY_B3_OUT[i]?.value ?? 0) / 4 }))
-  }, [apiData, periodTransactions, trendPeriod])
+    return monthNames.map((m) => ({
+      name: m,
+      b3in: Number(monthMap[m].b3in.toFixed(1)),
+      b3out: Number(monthMap[m].b3out.toFixed(1)),
+    }))
+  }, [periodTransactions])
 
   const dynamicPieIn = useMemo(() => {
-    if (apiData !== null) {
-      const catMap: Record<string, number> = {}
-      periodTransactions.filter((tx) => tx.category === 'b3in' || tx.transaction_type === 'IN').forEach((tx) => {
-        const name = tx.type || tx.waste_name || 'Limbah B3'
-        catMap[name] = (catMap[name] || 0) + Number(tx.amountKg ?? tx.weightKg ?? 0)
-      })
-      const entries = Object.entries(catMap).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
-      if (entries.length > 0) return entries
-      return [{ name: 'Belum ada data', value: 0 }]
-    }
-    return PIE_B3_IN
-  }, [apiData, periodTransactions])
+    const catMap: Record<string, number> = {}
+    periodTransactions.filter((tx) => tx.category === 'b3in' || tx.transaction_type === 'IN').forEach((tx) => {
+      const name = tx.type || tx.waste_name || 'Limbah B3'
+      catMap[name] = (catMap[name] || 0) + Number(tx.amountKg ?? tx.weightKg ?? 0)
+    })
+    const entries = Object.entries(catMap).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
+    if (entries.length > 0) return entries
+    return [{ name: 'Belum ada data', value: 0 }]
+  }, [periodTransactions])
 
   const dynamicPieOut = useMemo(() => {
-    if (apiData !== null) {
-      const destMap: Record<string, number> = {}
-      periodTransactions.filter((tx) => tx.category === 'b3out' || tx.transaction_type === 'OUT').forEach((tx) => {
-        const name = tx.destination || 'Pihak Ke-3'
-        destMap[name] = (destMap[name] || 0) + Number(tx.amountKg ?? tx.weightKg ?? 0)
-      })
-      const entries = Object.entries(destMap).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
-      if (entries.length > 0) return entries
-      return [{ name: 'Belum ada data', value: 0 }]
-    }
-    return PIE_B3_OUT
-  }, [apiData, periodTransactions])
+    const destMap: Record<string, number> = {}
+    periodTransactions.filter((tx) => tx.category === 'b3out' || tx.transaction_type === 'OUT').forEach((tx) => {
+      const name = tx.destination || 'Pihak Ke-3'
+      destMap[name] = (destMap[name] || 0) + Number(tx.amountKg ?? tx.weightKg ?? 0)
+    })
+    const entries = Object.entries(destMap).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
+    if (entries.length > 0) return entries
+    return [{ name: 'Belum ada data', value: 0 }]
+  }, [periodTransactions])
 
   const tooltipStyle = {
     contentStyle: {
