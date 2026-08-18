@@ -28,6 +28,18 @@ class DomesticTransactionResource extends JsonResource
             'pic_name' => $this->pic_name,
             'pic_phone' => $this->pic_phone,
             'notes' => $this->notes,
+            'created_by' => $this->created_by,
+            'updated_by' => $this->updated_by,
+            'creator' => $this->creator ? [
+                'id' => $this->creator->id,
+                'name' => $this->creator->name,
+                'email' => $this->creator->email,
+            ] : null,
+            'updater' => $this->updater ? [
+                'id' => $this->updater->id,
+                'name' => $this->updater->name,
+                'email' => $this->updater->email,
+            ] : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

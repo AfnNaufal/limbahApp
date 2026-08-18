@@ -31,7 +31,7 @@ interface WasteTypeDetailModalProps {
 }
 
 export default function WasteTypeDetailModal({ item, onClose }: WasteTypeDetailModalProps) {
-  const { tokens, theme } = useApp()
+  const { tokens, theme, t } = useApp()
   const isMobile = useIsMobile()
   const [filterType, setFilterType] = useState<'all' | 'in' | 'out'>('all')
 
@@ -467,19 +467,35 @@ export default function WasteTypeDetailModal({ item, onClose }: WasteTypeDetailM
                             {tx.manifest || '-'}
                           </td>
                           <td style={{ padding: '8px 12px' }}>
-                            <span
-                              style={{
-                                fontSize: 10.5,
-                                fontWeight: 600,
-                                textTransform: 'capitalize',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                background: `${tokens.primary}15`,
-                                color: tokens.primary,
-                              }}
-                            >
-                              {tx.status || 'pending'}
-                            </span>
+                            {(() => {
+                              const s = String(tx.status || 'pending').toLowerCase()
+                              const statusColorMap: Record<string, string> = {
+                                pending: '#f59e0b',
+                                processed: '#3b82f6',
+                                disposed: '#22c55e',
+                                received: '#0ea5e9',
+                                completed: '#22c55e',
+                                draft: '#6b7280',
+                                verified: '#10b981',
+                                rejected: '#ef4444',
+                                submitted: '#3b82f6',
+                              }
+                              const col = statusColorMap[s] || tokens.primary
+                              return (
+                                <span
+                                  style={{
+                                    fontSize: 10.5,
+                                    fontWeight: 600,
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: `${col}18`,
+                                    color: col,
+                                  }}
+                                >
+                                  {t(s) || s}
+                                </span>
+                              )
+                            })()}
                           </td>
                         </tr>
                       )

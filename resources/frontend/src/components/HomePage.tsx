@@ -1,45 +1,106 @@
+import { useEffect, useState } from 'react'
 import { useApp } from '../context'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import HeroProfileBanner from './dashboard/HeroProfileBanner'
+import LogbookDateStrip from './dashboard/LogbookDateStrip'
+import StorageComplianceCard from './dashboard/StorageComplianceCard'
+import TpsCapacityCard from './dashboard/TpsCapacityCard'
+import KpiSparklineRow from './dashboard/KpiSparklineRow'
+import {
+  getDashboardSummary,
+  getDashboardTrends,
+  getDashboardAlerts,
+  getB3Transactions,
+  getDomesticTransactions,
+  type DashboardSummaryData,
+  type DashboardTrendItem,
+  type StorageAlertItemApi,
+  type B3Transaction,
+  type DomesticTransaction,
+} from '../api'
 
 export default function HomePage() {
-  const { tokens, setPage, theme, t } = useApp()
+  const { tokens, setPage, theme, t, year, periodFilter } = useApp()
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+
+  // State for live database data
+  const [summaryData, setSummaryData] = useState<DashboardSummaryData | null>(null)
+  const [trendsData, setTrendsData] = useState<DashboardTrendItem[]>([])
+  const [alertsData, setAlertsData] = useState<StorageAlertItemApi[]>([])
+  const [b3List, setB3List] = useState<B3Transaction[]>([])
+  const [domesticList, setDomesticList] = useState<DomesticTransaction[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Fetch real data on mount & whenever year / periodFilter changes
+  useEffect(() => {
+    let isMounted = true
+
+    const loadHomeData = async () => {
+      try {
+        setLoading(true)
+        const [summary, trends, alerts, b3Res, domRes] = await Promise.allSettled([
+          getDashboardSummary(),
+          getDashboardTrends(12, year),
+          getDashboardAlerts(),
+          getB3Transactions({ per_page: 50 }),
+          getDomesticTransactions({ per_page: 50 }),
+        ])
+
+        if (!isMounted) return
+
+        if (summary.status === 'fulfilled') setSummaryData(summary.value)
+        if (trends.status === 'fulfilled') setTrendsData(trends.value)
+        if (alerts.status === 'fulfilled') setAlertsData(alerts.value)
+
+        if (b3Res.status === 'fulfilled' && b3Res.value) {
+          const items = Array.isArray(b3Res.value) ? b3Res.value : b3Res.value.data || []
+          setB3List(items)
+        }
+
+        if (domRes.status === 'fulfilled' && domRes.value) {
+          const items = Array.isArray(domRes.value) ? domRes.value : domRes.value.data || []
+          setDomesticList(items)
+        }
+      } catch (err) {
+        console.error('Failed to load home live data:', err)
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+
+    void loadHomeData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [year, periodFilter])
 
   const isGlass = theme === 'frosted' || theme === 'liquid'
   const isNight = theme === 'nightcity'
 
+  const bentoGridColumns = isMobile
+    ? '1fr'
+    : isTablet
+    ? 'repeat(2, 1fr)'
+    : 'minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.15fr)'
+
   const pillarColumns = isMobile ? '1fr' : 'repeat(2, 1fr)'
-  const statChipsColumns = isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'
 
   const cardBaseStyle = {
     background: tokens.card,
     border: `1px solid ${tokens.cardBorder}`,
     borderRadius: tokens.radius,
-    padding: isMobile ? '20px' : '26px',
+    padding: isMobile ? '20px' : '24px 26px',
     boxShadow: tokens.shadow,
     backdropFilter: isGlass ? tokens.glassBlur : undefined,
     WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
     display: 'flex',
     flexDirection: 'column' as const,
     justifyContent: 'space-between',
-    gap: 20,
+    gap: 18,
     transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
     minWidth: 0,
-  }
-
-  const statChipStyle = {
-    background: tokens.card,
-    border: `1px solid ${tokens.cardBorder}`,
-    borderRadius: tokens.radius,
-    padding: '14px 18px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 14,
-    boxShadow: tokens.shadow,
-    backdropFilter: isGlass ? tokens.glassBlur : undefined,
-    WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
   }
 
   return (
@@ -51,104 +112,29 @@ export default function HomePage() {
         fontFamily: tokens.fontFamily,
       }}
     >
-      {/* 1. Hero Profile Banner */}
-      <HeroProfileBanner />
+      {/* 1. Hero Profile & Action Banner */}
+      <HeroProfileBanner b3List={b3List} />
 
-      {/* 2. Quick Live Status Chips */}
-      <div style={{ display: 'grid', gridTemplateColumns: statChipsColumns, gap: 14, marginBottom: 24 }}>
-        {/* Chip 1: TPS B3 */}
-        <div style={statChipStyle}>
-          <div
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 10,
-              background: `${tokens.chartB3In}18`,
-              color: tokens.chartB3In,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-          </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: tokens.textMuted, letterSpacing: '0.5px' }}>
-              TPS Limbah B3
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: tokens.text, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Neraca Logbook Aktif
-            </div>
-          </div>
-        </div>
-
-        {/* Chip 2: Status Masa Simpan */}
-        <div style={statChipStyle}>
-          <div
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 10,
-              background: `${tokens.primary}18`,
-              color: tokens.primary,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-          </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: tokens.textMuted, letterSpacing: '0.5px' }}>
-              Masa Simpan (PP 22/2021)
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: tokens.primary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>●</span> Terpantau Aman
-            </div>
-          </div>
-        </div>
-
-        {/* Chip 3: Domestik 3R */}
-        <div style={statChipStyle}>
-          <div
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 10,
-              background: `${tokens.chartDomMorning}18`,
-              color: tokens.chartDomMorning,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-          </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: tokens.textMuted, letterSpacing: '0.5px' }}>
-              Limbah Domestik 3R
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: tokens.text, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Sesi Pagi & Sore
-            </div>
-          </div>
+      {/* 2. Bento Grid 3-Card Row (Logbook Date Strip | SLA Compliance | TPS Capacity Pass) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: bentoGridColumns,
+          gap: 16,
+          marginBottom: 20,
+        }}
+      >
+        <LogbookDateStrip b3List={b3List} domesticList={domesticList} loading={loading} />
+        <StorageComplianceCard alerts={alertsData} summary={summaryData} b3List={b3List} domesticList={domesticList} loading={loading} />
+        <div style={isTablet && !isMobile ? { gridColumn: 'span 2' } : undefined}>
+          <TpsCapacityCard summary={summaryData} loading={loading} />
         </div>
       </div>
 
-      {/* 3. Section Title: Dua Pilar Utama */}
+      {/* 3. Row of 4 KPI Metric Summary Cards with Sparklines */}
+      <KpiSparklineRow summary={summaryData} trends={trendsData} loading={loading} />
+
+      {/* 4. Section Title: Modul Operasional TPS */}
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 4, height: 20, background: tokens.primary, borderRadius: 2 }} />
         <div>
@@ -156,12 +142,12 @@ export default function HomePage() {
             {t('quickAccessTitle', 'Pusat Pengelolaan Modul Limbah')}
           </h2>
           <span style={{ fontSize: 13, color: tokens.textMuted }}>
-            Pilih pilar modul limbah di bawah untuk membuka tabel monitoring atau melakukan pencatatan transaksi
+            Pilih pilar modul limbah di bawah untuk membuka tabel monitoring atau melakukan pencatatan transaksi langsung
           </span>
         </div>
       </div>
 
-      {/* 4. Dual Core Pillars (B3 vs Domestik) */}
+      {/* 5. Dual Core Pillars (B3 vs Domestik Launchpad) */}
       <div style={{ display: 'grid', gridTemplateColumns: pillarColumns, gap: 20, marginBottom: 24 }}>
         {/* PILAR 1: Limbah B3 */}
         <div
@@ -176,12 +162,12 @@ export default function HomePage() {
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div
                 style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 14,
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
                   background: `${tokens.chartB3In}18`,
                   color: tokens.chartB3In,
                   display: 'flex',
@@ -189,7 +175,7 @@ export default function HomePage() {
                   justifyContent: 'center',
                 }}
               >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                   <line x1="12" y1="9" x2="12" y2="13" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -200,10 +186,10 @@ export default function HomePage() {
               </span>
             </div>
 
-            <div style={{ fontSize: 19, fontWeight: 800, color: tokens.text, marginBottom: 8 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: tokens.text, marginBottom: 8 }}>
               {t('b3Waste', 'Limbah Bahan Berbahaya & Beracun (B3)')}
             </div>
-            <div style={{ fontSize: 13.5, color: tokens.textMuted, lineHeight: 1.6, marginBottom: 16 }}>
+            <div style={{ fontSize: 13.5, color: tokens.textMuted, lineHeight: 1.55, marginBottom: 16 }}>
               {t('b3ModuleDesc', 'Monitoring neraca logbook TPS B3, kepatuhan batas masa simpan 90/180/365 hari, dan manifest pengangkutan resmi.')}
             </div>
 
@@ -227,12 +213,12 @@ export default function HomePage() {
               onClick={() => setPage('b3')}
               style={{
                 width: '100%',
-                padding: '13px 16px',
+                padding: '12px 16px',
                 background: tokens.chartB3In,
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: tokens.radius,
-                fontSize: 14,
+                fontSize: 13.5,
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
@@ -252,12 +238,12 @@ export default function HomePage() {
                 type="button"
                 onClick={() => setPage('b3-in')}
                 style={{
-                  padding: '11px 8px',
+                  padding: '10px 8px',
                   background: `${tokens.chartB3In}15`,
                   color: tokens.chartB3In,
                   border: `1px solid ${tokens.chartB3In}45`,
                   borderRadius: tokens.radius,
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: 700,
                   cursor: 'pointer',
                   textAlign: 'center',
@@ -272,12 +258,12 @@ export default function HomePage() {
                 type="button"
                 onClick={() => setPage('b3-out')}
                 style={{
-                  padding: '11px 8px',
+                  padding: '10px 8px',
                   background: `${tokens.chartB3Out}15`,
                   color: tokens.chartB3Out,
                   border: `1px solid ${tokens.chartB3Out}45`,
                   borderRadius: tokens.radius,
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: 700,
                   cursor: 'pointer',
                   textAlign: 'center',
@@ -305,12 +291,12 @@ export default function HomePage() {
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div
                 style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 14,
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
                   background: `${tokens.chartDomMorning}18`,
                   color: tokens.chartDomMorning,
                   display: 'flex',
@@ -318,7 +304,7 @@ export default function HomePage() {
                   justifyContent: 'center',
                 }}
               >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                   <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
@@ -328,10 +314,10 @@ export default function HomePage() {
               </span>
             </div>
 
-            <div style={{ fontSize: 19, fontWeight: 800, color: tokens.text, marginBottom: 8 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: tokens.text, marginBottom: 8 }}>
               {t('domesticWaste', 'Limbah Padat Domestik & Daur Ulang')}
             </div>
-            <div style={{ fontSize: 13.5, color: tokens.textMuted, lineHeight: 1.6, marginBottom: 16 }}>
+            <div style={{ fontSize: 13.5, color: tokens.textMuted, lineHeight: 1.55, marginBottom: 16 }}>
               {t('domesticModuleDesc', 'Pencatatan timbulan sampah harian terpilah (organik, anorganik, residu) sesi pagi dan sore menuju zero waste.')}
             </div>
 
@@ -355,19 +341,19 @@ export default function HomePage() {
               onClick={() => setPage('domestic')}
               style={{
                 width: '100%',
-                padding: '13px 16px',
+                padding: '12px 16px',
                 background: tokens.primary,
                 color: tokens.textInverse,
                 border: 'none',
                 borderRadius: tokens.radius,
-                fontSize: 14,
+                fontSize: 13.5,
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
-                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
+                boxShadow: '0 4px 14px rgba(22, 163, 74, 0.25)',
                 transition: 'all 0.15s',
               }}
             >
@@ -380,12 +366,12 @@ export default function HomePage() {
                 type="button"
                 onClick={() => setPage('waste-in')}
                 style={{
-                  padding: '11px 8px',
+                  padding: '10px 8px',
                   background: `${tokens.chartDomMorning}15`,
                   color: tokens.chartDomMorning,
                   border: `1px solid ${tokens.chartDomMorning}45`,
                   borderRadius: tokens.radius,
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: 700,
                   cursor: 'pointer',
                   textAlign: 'center',
@@ -400,12 +386,12 @@ export default function HomePage() {
                 type="button"
                 onClick={() => setPage('waste-out')}
                 style={{
-                  padding: '11px 8px',
+                  padding: '10px 8px',
                   background: `${tokens.chartDomAfternoon}15`,
                   color: tokens.chartDomAfternoon,
                   border: `1px solid ${tokens.chartDomAfternoon}45`,
                   borderRadius: tokens.radius,
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: 700,
                   cursor: 'pointer',
                   textAlign: 'center',
@@ -421,7 +407,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 5. Banner Navigasi ke Dasbor Analitik & Grafik */}
+      {/* 6. Banner Navigasi ke Dasbor Analitik & Grafik */}
       <div
         style={{
           background: `linear-gradient(135deg, ${tokens.card}, ${tokens.bgSecondary})`,

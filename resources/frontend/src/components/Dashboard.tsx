@@ -152,16 +152,12 @@ function TrendToggle({ value, onChange, tokens }: TrendToggleProps) {
   )
 }
 
-interface CategorySectionProps {
-  config: CategoryConfig
-  tokens: ReturnType<typeof useApp>['tokens']
-  onCardClick: (id: string) => void
-}
-
 function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) {
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
+  const [mobileTab, setMobileTab] = useState<'bar' | 'pie' | 'trend'>('bar')
   const { theme, t } = useApp()
   const isNight = theme === 'nightcity'
+  const isGlass = theme === 'frosted' || theme === 'liquid'
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
 
@@ -185,7 +181,213 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
     labelStyle: { color: tokens.tooltipText, fontWeight: 600 },
   }
 
-  const rowColumns = isMobile ? '1fr' : isTablet ? '1fr 1fr' : '220px 1fr 200px 1fr'
+  const pieColors = [config.color, tokens.accent, tokens.warning, tokens.success, '#a78bfa', '#fb923c', '#06b6d4', '#ec4899']
+  const totalPie = config.pieData.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+  const topPieItems = [...config.pieData]
+    .sort((a, b) => Number(b.value) - Number(a.value))
+    .slice(0, 3)
+
+  // Find max month in barData
+  const highestMonth = [...config.barData]
+    .filter((d) => d.value > 0)
+    .sort((a, b) => b.value - a.value)[0]
+
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          background: tokens.card,
+          border: `1px solid ${tokens.cardBorder}`,
+          borderRadius: tokens.radius,
+          padding: '16px',
+          boxShadow: tokens.shadow,
+          backdropFilter: isGlass ? tokens.glassBlur : undefined,
+          WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
+          marginBottom: 16,
+          fontFamily: tokens.fontFamily,
+        }}
+      >
+        {/* Mobile Header: Category + Summary */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: config.color, flexShrink: 0, boxShadow: `0 0 6px ${config.color}` }} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text }}>{config.labelKey}</div>
+              <div style={{ fontSize: 11, color: tokens.textMuted }}>{config.stats.entries} transaksi tercatat</div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: tokens.text, fontVariantNumeric: 'tabular-nums' }}>
+              {config.stats.total.toLocaleString('id-ID', { maximumFractionDigits: 1 })}
+              <span style={{ fontSize: 11, color: tokens.textMuted, marginLeft: 2 }}>kg</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onCardClick(config.id)}
+              style={{ background: 'none', border: 'none', color: tokens.primary, fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+            >
+              Detail →
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Tab Switcher */}
+        <div style={{ display: 'flex', background: tokens.bgSecondary, padding: 3, borderRadius: 6, gap: 4, marginBottom: 12 }}>
+          {[
+            { id: 'bar', label: '📊 Volume', title: 'Volume Bulanan' },
+            { id: 'pie', label: '🍩 Komposisi', title: 'Komposisi Limbah' },
+            { id: 'trend', label: '📈 Tren', title: 'Fluktuasi Tren' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setMobileTab(tab.id as any)}
+              style={{
+                flex: 1,
+                padding: '6px 4px',
+                borderRadius: 4,
+                border: 'none',
+                background: mobileTab === tab.id ? tokens.card : 'transparent',
+                color: mobileTab === tab.id ? tokens.text : tokens.textMuted,
+                fontWeight: mobileTab === tab.id ? 700 : 500,
+                fontSize: 11.5,
+                boxShadow: mobileTab === tab.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                cursor: 'pointer',
+                fontFamily: tokens.fontFamily,
+                transition: 'background 0.15s',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Active Tab View */}
+        {mobileTab === 'bar' && (
+          <div>
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={config.barData} barSize={16} margin={{ top: 6, right: 4, bottom: 4, left: -16 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
+                <Tooltip {...tooltipStyle} formatter={(value) => [`${Number(value).toFixed(1)} kg`, '']} />
+                <Bar
+                  dataKey="value"
+                  fill={config.color}
+                  radius={[3, 3, 0, 0]}
+                  style={{ filter: isNight ? `drop-shadow(0 0 4px ${config.color})` : undefined }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+            {highestMonth && (
+              <div style={{ marginTop: 6, fontSize: 11, color: tokens.textMuted, textAlign: 'center', background: tokens.bgSecondary, padding: '4px 8px', borderRadius: 4 }}>
+                🏆 Puncak Tertinggi: <strong style={{ color: tokens.text }}>{highestMonth.name} ({highestMonth.value.toLocaleString('id-ID')} kg)</strong>
+              </div>
+            )}
+          </div>
+        )}
+
+        {mobileTab === 'pie' && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ResponsiveContainer width="100%" height={120}>
+                <PieChart>
+                  <Pie
+                    data={config.pieData.length > 0 ? config.pieData : [{ name: 'Belum ada data', value: 1 }]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={28}
+                    outerRadius={48}
+                    dataKey="value"
+                    paddingAngle={2}
+                  >
+                    {config.pieData.map((_, index) => (
+                      <Cell key={`${config.id}-${index}`} fill={pieColors[index % pieColors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip {...tooltipStyle} formatter={(value, name) => [`${Number(value).toLocaleString('id-ID')} kg`, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Mini Legend */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, borderTop: `1px solid ${tokens.border}`, paddingTop: 8 }}>
+              {config.pieData.length === 0 ? (
+                <span style={{ fontSize: 11, color: tokens.textMuted, textAlign: 'center' }}>Belum ada data rincian</span>
+              ) : (
+                (() => {
+                  const sorted = [...config.pieData].sort((a, b) => Number(b.value) - Number(a.value))
+                  const top3 = sorted.slice(0, 3)
+                  const others = sorted.slice(3)
+                  const otherTotal = others.reduce((sum, item) => sum + (Number(item.value) || 0), 0)
+                  const otherPct = totalPie > 0 ? ((otherTotal / totalPie) * 100).toFixed(0) : '0'
+
+                  return (
+                    <>
+                      {top3.map((item, idx) => {
+                        const pct = totalPie > 0 ? ((Number(item.value) / totalPie) * 100).toFixed(0) : '0'
+                        const color = pieColors[idx % pieColors.length]
+                        return (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                              <span style={{ color: tokens.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
+                                {item.name}
+                              </span>
+                            </div>
+                            <span style={{ fontWeight: 600, color: tokens.textMuted, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                              {Number(item.value).toLocaleString('id-ID')} kg ({pct}%)
+                            </span>
+                          </div>
+                        )
+                      })}
+
+                      {others.length > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: tokens.textMuted, borderTop: `1px dashed ${tokens.border}`, paddingTop: 3 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#94a3b8', flexShrink: 0 }} />
+                            <span>Lainnya ({others.length} jenis limbah)</span>
+                          </div>
+                          <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                            {otherTotal.toLocaleString('id-ID')} kg ({otherPct}%)
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()
+              )}
+            </div>
+          </div>
+        )}
+
+        {mobileTab === 'trend' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
+              <TrendToggle value={trendPeriod} onChange={setTrendPeriod} tokens={tokens} />
+            </div>
+            <ResponsiveContainer width="100%" height={120}>
+              <LineChart data={trendData} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
+                <Tooltip {...tooltipStyle} formatter={(value, name) => [`${Number(value).toLocaleString('id-ID')} kg`, name]} />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke={config.color}
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: config.color }}
+                  style={{ filter: isNight ? `drop-shadow(0 0 4px ${config.color})` : undefined }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Desktop & Tablet View
+  const rowColumns = isTablet ? '1fr 1fr' : '220px 1fr 220px 1fr'
 
   return (
     <div style={{ marginBottom: 28 }}>
@@ -216,7 +418,7 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
           </div>
         </ChartCard>
 
-        <ChartCard title={t('barChart', 'Grafik Batang')} tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title="Volume Bulanan" tokens={tokens} onClick={() => onCardClick(config.id)}>
           <ResponsiveContainer width="100%" height={120}>
             <BarChart data={config.barData} barSize={14} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: tokens.textMuted, fontFamily: tokens.fontFamily }} axisLine={false} tickLine={false} />
@@ -232,29 +434,28 @@ function CategorySection({ config, tokens, onCardClick }: CategorySectionProps) 
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t('distribution', 'Distribusi')} tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title="Komposisi Limbah" tokens={tokens} onClick={() => onCardClick(config.id)}>
           <ResponsiveContainer width="100%" height={120}>
             <PieChart>
               <Pie
                 data={config.pieData.length > 0 ? config.pieData : [{ name: 'Belum ada data', value: 1 }]}
                 cx="50%"
                 cy="50%"
-                innerRadius={30}
-                outerRadius={50}
+                innerRadius={28}
+                outerRadius={48}
                 dataKey="value"
                 paddingAngle={2}
               >
-                {config.pieData.map((_, index) => {
-                  const pieColors = [config.color, tokens.accent, tokens.warning, tokens.success, '#a78bfa', '#fb923c']
-                  return <Cell key={`${config.id}-${index}`} fill={pieColors[index % pieColors.length]} />
-                })}
+                {config.pieData.map((_, index) => (
+                  <Cell key={`${config.id}-${index}`} fill={pieColors[index % pieColors.length]} />
+                ))}
               </Pie>
               <Tooltip {...tooltipStyle} formatter={(value, name) => [`${Number(value).toLocaleString('id-ID')} kg`, name]} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t('trend', 'Tren')} tokens={tokens} onClick={() => onCardClick(config.id)}>
+        <ChartCard title="Fluktuasi Tren" tokens={tokens} onClick={() => onCardClick(config.id)}>
           <TrendToggle value={trendPeriod} onChange={setTrendPeriod} tokens={tokens} />
           <ResponsiveContainer width="100%" height={96}>
             <LineChart data={trendData} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
@@ -423,9 +624,17 @@ export default function Dashboard() {
     ? trendsData.map((item) => ({ name: item.month_name, value: item.domestic_inorganic_kg }))
     : defaultMonths
 
-  const b3PieData: ChartDataItem[] = breakdownData && breakdownData.length > 0
-    ? breakdownData.map((b) => ({ name: b.category_name, value: b.total_weight_kg }))
+  const b3InPieData: ChartDataItem[] = breakdownData && breakdownData.length > 0
+    ? breakdownData
+        .filter((b) => (b.in_weight_kg !== undefined ? Number(b.in_weight_kg) > 0 : Number(b.total_weight_kg) > 0))
+        .map((b) => ({ name: b.category_name, value: Number(b.in_weight_kg !== undefined ? b.in_weight_kg : b.total_weight_kg) }))
     : b3InWeight > 0 ? [{ name: 'Limbah B3 Masuk', value: b3InWeight }] : []
+
+  const b3OutPieData: ChartDataItem[] = breakdownData && breakdownData.length > 0
+    ? breakdownData
+        .filter((b) => (b.out_weight_kg !== undefined ? Number(b.out_weight_kg) > 0 : Number(b.total_weight_kg) > 0))
+        .map((b) => ({ name: b.category_name, value: Number(b.out_weight_kg !== undefined ? b.out_weight_kg : b.total_weight_kg) }))
+    : b3OutWeight > 0 ? [{ name: 'Limbah B3 Keluar', value: b3OutWeight }] : []
 
   const categories: CategoryConfig[] = [
     {
@@ -435,7 +644,7 @@ export default function Dashboard() {
       barData: monthlyB3In,
       weeklyData: monthlyB3In.slice(-4),
       monthlyData: monthlyB3In,
-      pieData: b3PieData,
+      pieData: b3InPieData,
       stats: {
         total: b3InWeight,
         change: 0,
@@ -450,7 +659,7 @@ export default function Dashboard() {
       barData: monthlyB3Out,
       weeklyData: monthlyB3Out.slice(-4),
       monthlyData: monthlyB3Out,
-      pieData: b3OutWeight > 0 ? [{ name: 'B3 Keluar', value: b3OutWeight }] : [],
+      pieData: b3OutPieData,
       stats: {
         total: b3OutWeight,
         change: 0,

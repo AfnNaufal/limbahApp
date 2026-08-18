@@ -29,7 +29,7 @@ class DomesticTransactionController
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
 
-        $query = DomesticTransaction::query();
+        $query = DomesticTransaction::with(['creator', 'updater']);
 
         // Filter by movement type
         if ($movementType && in_array($movementType, ['IN', 'OUT'])) {
@@ -81,7 +81,7 @@ class DomesticTransactionController
     {
         $transaction = $this->service->createTransaction($request->validated());
 
-        return new DomesticTransactionResource($transaction);
+        return new DomesticTransactionResource($transaction->load(['creator', 'updater']));
     }
 
     /**
@@ -91,7 +91,7 @@ class DomesticTransactionController
     {
         $transaction = $this->service->getTransaction($domesticTransaction->id);
 
-        return new DomesticTransactionResource($transaction);
+        return new DomesticTransactionResource($transaction->loadMissing(['creator', 'updater']));
     }
 
     /**
@@ -101,7 +101,7 @@ class DomesticTransactionController
     {
         $transaction = $this->service->updateTransaction($domesticTransaction, $request->validated());
 
-        return new DomesticTransactionResource($transaction);
+        return new DomesticTransactionResource($transaction->load(['creator', 'updater']));
     }
 
     /**

@@ -50,6 +50,22 @@ class B3Transaction extends Model
     }
 
     /**
+     * Get the user who created this transaction
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the user who last updated this transaction
+     */
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    /**
      * Get all storage alerts for this transaction
      */
     public function storageAlerts()

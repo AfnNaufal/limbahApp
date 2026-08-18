@@ -1,13 +1,15 @@
 import { useApp } from '../../context'
 import { useIsMobile } from '../../hooks/useMediaQuery'
 
+export type DomesticFilterStatus = 'all' | 'submitted' | 'verified' | 'draft' | 'rejected' | 'pending' | 'processed' | 'disposed'
+
 interface DomesticFilterBarProps {
   filterMovement: 'all' | 'IN' | 'OUT'
   setFilterMovement: (val: 'all' | 'IN' | 'OUT') => void
   filterSession: 'all' | 'morning' | 'afternoon'
   setFilterSession: (val: 'all' | 'morning' | 'afternoon') => void
-  filterStatus: 'all' | 'pending' | 'processed' | 'disposed'
-  setFilterStatus: (val: 'all' | 'pending' | 'processed' | 'disposed') => void
+  filterStatus: DomesticFilterStatus
+  setFilterStatus: (val: DomesticFilterStatus) => void
   onReset: () => void
 }
 
@@ -82,7 +84,7 @@ export default function DomesticFilterBar({
       </select>
       <select
         value={filterStatus}
-        onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+        onChange={(e) => setFilterStatus(e.target.value as DomesticFilterStatus)}
         style={{
           padding: '5px 8px',
           background: tokens.inputBg,
@@ -95,6 +97,10 @@ export default function DomesticFilterBar({
         }}
       >
         <option value="all">{t('allStatuses')}</option>
+        <option value="submitted">{t('submitted')}</option>
+        <option value="verified">{t('verified')}</option>
+        <option value="draft">{t('draft')}</option>
+        <option value="rejected">{t('rejected')}</option>
         <option value="pending">{t('pending')}</option>
         <option value="processed">{t('processed')}</option>
         <option value="disposed">{t('disposed')}</option>

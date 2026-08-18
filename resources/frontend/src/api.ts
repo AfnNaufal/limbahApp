@@ -190,6 +190,8 @@ export type CategoryBreakdownItem = {
   category_code: string;
   transaction_count: number;
   total_weight_kg: number;
+  in_weight_kg?: number;
+  out_weight_kg?: number;
   in_count: number;
   out_count: number;
 };

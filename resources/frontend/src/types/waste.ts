@@ -38,6 +38,8 @@ export interface B3TransactionData {
   notes?: string | null
   created_by?: number | null
   updated_by?: number | null
+  creator?: { id: number; name: string; email: string } | null
+  updater?: { id: number; name: string; email: string } | null
   created_at?: string
   updated_at?: string
 }
@@ -83,6 +85,8 @@ export interface DomesticTransactionData {
   notes?: string | null
   created_by?: number | null
   updated_by?: number | null
+  creator?: { id: number; name: string; email: string } | null
+  updater?: { id: number; name: string; email: string } | null
   created_at?: string
   updated_at?: string
 }

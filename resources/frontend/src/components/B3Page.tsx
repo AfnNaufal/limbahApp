@@ -32,7 +32,7 @@ export default function B3Page() {
   const [activeTab, setActiveTab] = useState<'summary' | 'transactions'>('summary')
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
   const [filterCat, setFilterCat] = useState<'all' | 'b3in' | 'b3out'>('all')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'processed' | 'disposed'>('all')
+  const [filterStatus, setFilterStatus] = useState<import('./b3/B3FilterBar').B3FilterStatus>('all')
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
   const [page, setPage] = useState(1)
@@ -107,27 +107,40 @@ export default function B3Page() {
     })
       .then((res) => {
         if (res?.data) {
-          const mapped = res.data.map((item: any) => ({
-            id: `B3-${item.id}`,
-            rawId: item.id,
-            date: item.date,
-            category: item.transaction_type === 'IN' ? 'b3in' : 'b3out',
-            transaction_type: item.transaction_type,
-            type: item.waste_name,
-            waste_name: item.waste_name,
-            wasteCode: item.waste_code,
-            waste_code: item.waste_code,
-            weightKg: Number(item.weight_kg ?? 0),
-            amountKg: Number(item.weight_kg ?? 0),
-            status: (item.status || 'pending').toLowerCase(),
-            source: item.source || '-',
-            destination: item.destination || '-',
-            transporter: item.transporter || '-',
-            manifest: item.manifest_number || '-',
-            scalePhotoUrl: item.scale_photo_url || null,
-            notes: item.notes || '',
-            storage_deadline_at: item.storage_deadline_at,
-          }))
+          const mapped = res.data.map((item: any) => {
+            const rawUrl = item.scale_photo_url || null
+            const cleanPhotoUrl = rawUrl && rawUrl.includes('/storage/')
+              ? '/storage/' + rawUrl.split('/storage/')[1]
+              : rawUrl
+
+            return {
+              id: `B3-${item.id}`,
+              rawId: item.id,
+              date: item.date,
+              category: item.transaction_type === 'IN' ? 'b3in' : 'b3out',
+              transaction_type: item.transaction_type,
+              type: item.waste_name,
+              waste_name: item.waste_name,
+              wasteCode: item.waste_code,
+              waste_code: item.waste_code,
+              weightKg: Number(item.weight_kg ?? 0),
+              amountKg: Number(item.weight_kg ?? 0),
+              status: (item.status || 'pending').toLowerCase(),
+              source: item.source || '-',
+              destination: item.destination || '-',
+              transporter: item.transporter || '-',
+              manifest: item.manifest_number || '-',
+              scalePhotoUrl: cleanPhotoUrl,
+              notes: item.notes || '',
+              storage_deadline_at: item.storage_deadline_at,
+              created_by: item.created_by,
+              updated_by: item.updated_by,
+              creator: item.creator || null,
+              updater: item.updater || null,
+              created_at: item.created_at,
+              updated_at: item.updated_at,
+            }
+          })
           setApiData(mapped)
         }
         setLoading(false)
@@ -567,7 +580,7 @@ export default function B3Page() {
         <div
           onClick={() => setPreviewImage(null)}
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100,
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 120,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
           }}
         >
@@ -575,26 +588,64 @@ export default function B3Page() {
             onClick={(e) => e.stopPropagation()}
             style={{
               position: 'relative', background: tokens.card, border: `1px solid ${tokens.cardBorder}`,
-              borderRadius: tokens.radius, padding: 16, maxWidth: '90vw', maxHeight: '90vh',
-              boxShadow: tokens.shadow, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+              borderRadius: tokens.radius, padding: 18, maxWidth: '90vw', maxHeight: '90vh',
+              boxShadow: tokens.shadow, display: 'flex', flexDirection: 'column', gap: 12,
+              fontFamily: tokens.fontFamily,
             }}
           >
-            <img
-              src={previewImage}
-              alt="Foto Timbangan Presisi"
-              style={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: tokens.radius, objectFit: 'contain' }}
-            />
-            <button
-              type="button"
-              onClick={() => setPreviewImage(null)}
-              style={{
-                padding: '6px 16px', background: tokens.primary, color: tokens.textInverse,
-                border: 'none', borderRadius: tokens.radius, cursor: 'pointer', fontSize: 12,
-                fontWeight: 600, fontFamily: tokens.fontFamily,
-              }}
-            >
-              Tutup Pratinjau
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${tokens.border}`, paddingBottom: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>📷</span>
+                <span>Foto Bukti Timbangan</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: tokens.textMuted, padding: '2px 6px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 260, minHeight: 200, background: tokens.bgSecondary, borderRadius: tokens.radius, overflow: 'hidden' }}>
+              <img
+                src={previewImage}
+                alt="Foto Timbangan Presisi"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                  const parent = e.currentTarget.parentElement
+                  if (parent) {
+                    parent.innerHTML = '<div style="padding: 24px; text-align: center; color: #ef4444; font-size: 13px; font-weight: 600;">⚠️ Gambar tidak dapat dimuat atau file tidak ditemukan di server.</div>'
+                  }
+                }}
+                style={{ maxWidth: '100%', maxHeight: '72vh', borderRadius: tokens.radius, objectFit: 'contain' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => window.open(previewImage, '_blank')}
+                style={{
+                  padding: '6px 14px', background: tokens.inputBg, border: `1px solid ${tokens.border}`,
+                  color: tokens.text, borderRadius: tokens.radius, cursor: 'pointer', fontSize: 12,
+                  fontWeight: 600, fontFamily: tokens.fontFamily,
+                }}
+              >
+                Buka Tab Baru ↗
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                style={{
+                  padding: '6px 16px', background: tokens.primary, color: tokens.textInverse,
+                  border: 'none', borderRadius: tokens.radius, cursor: 'pointer', fontSize: 12,
+                  fontWeight: 600, fontFamily: tokens.fontFamily,
+                }}
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

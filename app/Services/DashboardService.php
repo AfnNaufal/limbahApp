@@ -251,6 +251,8 @@ class DashboardService
                 waste_categories.code as category_code,
                 COUNT(*) as transaction_count,
                 COALESCE(SUM(b3_transactions.weight_kg), 0) as total_weight_kg,
+                COALESCE(SUM(CASE WHEN b3_transactions.transaction_type = "IN" THEN b3_transactions.weight_kg ELSE 0 END), 0) as in_weight_kg,
+                COALESCE(SUM(CASE WHEN b3_transactions.transaction_type = "OUT" THEN b3_transactions.weight_kg ELSE 0 END), 0) as out_weight_kg,
                 SUM(CASE WHEN b3_transactions.transaction_type = "IN" THEN 1 ELSE 0 END) as in_count,
                 SUM(CASE WHEN b3_transactions.transaction_type = "OUT" THEN 1 ELSE 0 END) as out_count
             ')
@@ -263,6 +265,8 @@ class DashboardService
                     'category_code' => $row->category_code,
                     'transaction_count' => (int) $row->transaction_count,
                     'total_weight_kg' => (float) $row->total_weight_kg,
+                    'in_weight_kg' => (float) $row->in_weight_kg,
+                    'out_weight_kg' => (float) $row->out_weight_kg,
                     'in_count' => (int) $row->in_count,
                     'out_count' => (int) $row->out_count,
                 ];

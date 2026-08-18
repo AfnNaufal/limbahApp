@@ -130,6 +130,16 @@ class DomesticTransaction extends Model
         return $query->whereBetween('date', [$from, $to]);
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
     public function scopeToday(Builder $query): Builder
     {
         return $query->whereDate('date', today());

@@ -32,7 +32,7 @@ export default function DomesticPage() {
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
   const [filterMovement, setFilterMovement] = useState<'all' | 'IN' | 'OUT'>('all')
   const [filterSession, setFilterSession] = useState<'all' | 'morning' | 'afternoon'>('all')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'processed' | 'disposed'>('all')
+  const [filterStatus, setFilterStatus] = useState<import('./domestic/DomesticFilterBar').DomesticFilterStatus>('all')
   const [page, setPage] = useState(1)
   const [apiData, setApiData] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -94,7 +94,15 @@ export default function DomesticPage() {
             domestic_residue_kg: item.domestic_residue_kg,
             status: (item.status || 'SUBMITTED').toLowerCase(),
             picName: item.pic_name || 'Petugas',
+            pic_name: item.pic_name || 'Petugas',
+            pic_phone: item.pic_phone,
             notes: item.notes || '',
+            created_by: item.created_by,
+            updated_by: item.updated_by,
+            creator: item.creator || null,
+            updater: item.updater || null,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
           }))
           setApiData(mapped)
         }
@@ -317,7 +325,7 @@ export default function DomesticPage() {
         {/* Main Bar Chart */}
         <div style={cardStyle}>
           <div style={{ fontSize: 13, fontWeight: 700, color: tokens.text, marginBottom: 12 }}>
-            {t('domMonthlyTrend')}
+            {t('domesticMonthlyTrend')}
           </div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={trendData} barGap={4}>

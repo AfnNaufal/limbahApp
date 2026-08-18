@@ -28,7 +28,7 @@ class B3TransactionController
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
 
-        $query = B3Transaction::with('wasteCategory');
+        $query = B3Transaction::with(['wasteCategory', 'creator', 'updater']);
 
         // Filter by transaction type
         if ($type && in_array($type, ['IN', 'OUT'])) {
@@ -78,7 +78,7 @@ class B3TransactionController
     {
         $transaction = $this->service->createTransaction($request->validated());
 
-        return new B3TransactionResource($transaction->load('wasteCategory'));
+        return new B3TransactionResource($transaction->load(['wasteCategory', 'creator', 'updater']));
     }
 
     /**
@@ -88,7 +88,7 @@ class B3TransactionController
     {
         $transaction = $this->service->getTransaction($b3Transaction->id);
 
-        return new B3TransactionResource($transaction);
+        return new B3TransactionResource($transaction->loadMissing(['wasteCategory', 'creator', 'updater']));
     }
 
     /**
@@ -98,7 +98,7 @@ class B3TransactionController
     {
         $transaction = $this->service->updateTransaction($b3Transaction, $request->validated());
 
-        return new B3TransactionResource($transaction->load('wasteCategory'));
+        return new B3TransactionResource($transaction->load(['wasteCategory', 'creator', 'updater']));
     }
 
     /**

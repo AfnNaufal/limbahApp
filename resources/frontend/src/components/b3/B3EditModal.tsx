@@ -51,7 +51,16 @@ export default function B3EditModal({
           fontFamily: tokens.fontFamily,
         }}
       >
-        <div style={{ fontSize: 16, fontWeight: 700, color: tokens.text }}>Edit Transaksi {editingTx.id}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: tokens.text }}>Edit Transaksi {editingTx.id}</div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: tokens.textMuted }}
+          >
+            ✕
+          </button>
+        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
@@ -122,7 +131,33 @@ export default function B3EditModal({
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
+        {/* Audit Metadata Box */}
+        <div
+          style={{
+            background: tokens.bgSecondary,
+            border: `1px solid ${tokens.border}`,
+            borderRadius: 6,
+            padding: '8px 12px',
+            fontSize: 11,
+            color: tokens.textMuted,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>👤 Dibuat oleh: <strong style={{ color: tokens.text }}>{editingTx.creator?.name || 'Petugas EHS'}</strong></span>
+            <span>{editingTx.created_at ? new Date(editingTx.created_at).toLocaleString('id-ID') : '-'}</span>
+          </div>
+          {editingTx.updater && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px dashed ${tokens.border}`, paddingTop: 3 }}>
+              <span>✏️ Terakhir diubah: <strong style={{ color: tokens.text }}>{editingTx.updater.name}</strong></span>
+              <span>{editingTx.updated_at ? new Date(editingTx.updated_at).toLocaleString('id-ID') : '-'}</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
           <button
             type="button"
             onClick={onClose}

@@ -1,11 +1,13 @@
 import { useApp } from '../../context'
 import { useIsMobile } from '../../hooks/useMediaQuery'
 
+export type B3FilterStatus = 'all' | 'pending' | 'received' | 'processed' | 'completed' | 'disposed' | 'rejected'
+
 interface B3FilterBarProps {
   filterCat: 'all' | 'b3in' | 'b3out'
   setFilterCat: (val: 'all' | 'b3in' | 'b3out') => void
-  filterStatus: 'all' | 'pending' | 'processed' | 'disposed'
-  setFilterStatus: (val: 'all' | 'pending' | 'processed' | 'disposed') => void
+  filterStatus: B3FilterStatus
+  setFilterStatus: (val: B3FilterStatus) => void
   filterFrom: string
   setFilterFrom: (val: string) => void
   filterTo: string
@@ -62,13 +64,13 @@ export default function B3FilterBar({
           cursor: 'pointer',
         }}
       >
-        <option value="all">Semua</option>
+        <option value="all">Semua Jenis Log</option>
         <option value="b3in">B3 Masuk</option>
         <option value="b3out">B3 Keluar</option>
       </select>
       <select
         value={filterStatus}
-        onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+        onChange={(e) => setFilterStatus(e.target.value as B3FilterStatus)}
         style={{
           padding: '5px 8px',
           background: tokens.inputBg,
@@ -82,8 +84,11 @@ export default function B3FilterBar({
       >
         <option value="all">{t('allStatuses')}</option>
         <option value="pending">{t('pending')}</option>
+        <option value="received">{t('received')}</option>
         <option value="processed">{t('processed')}</option>
+        <option value="completed">{t('completed')}</option>
         <option value="disposed">{t('disposed')}</option>
+        <option value="rejected">{t('rejected')}</option>
       </select>
       <input
         type="date"

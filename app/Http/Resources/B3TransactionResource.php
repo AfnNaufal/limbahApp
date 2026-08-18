@@ -27,11 +27,25 @@ class B3TransactionResource extends JsonResource
             'status' => $this->status,
             'storage_deadline_at' => $this->storage_deadline_at?->toIso8601String(),
             'scale_photo_url' => $this->scale_photo_path
-                ? Storage::disk('public')->url($this->scale_photo_path)
+                ? (str_starts_with($this->scale_photo_path, 'http')
+                    ? $this->scale_photo_path
+                    : '/storage/' . ltrim($this->scale_photo_path, '/'))
                 : null,
             'is_near_deadline' => $this->is_near_deadline ?? false,
             'is_expired' => $this->is_expired ?? false,
             'notes' => $this->notes,
+            'created_by' => $this->created_by,
+            'updated_by' => $this->updated_by,
+            'creator' => $this->creator ? [
+                'id' => $this->creator->id,
+                'name' => $this->creator->name,
+                'email' => $this->creator->email,
+            ] : null,
+            'updater' => $this->updater ? [
+                'id' => $this->updater->id,
+                'name' => $this->updater->name,
+                'email' => $this->updater->email,
+            ] : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
