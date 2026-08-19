@@ -4,6 +4,7 @@ import { THEMES, type ThemeId, type ModeId } from '../theme'
 import { LANGUAGES, type LangId } from '../i18n'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { getSystemSettings, updateSystemSettings } from '../api'
+import WasteSourcesManager from './settings/WasteSourcesManager'
 
 function Section({ title, children, tokens }: { title: string; children: React.ReactNode; tokens: ReturnType<typeof useApp>['tokens'] }) {
   const { theme } = useApp()
@@ -324,6 +325,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </Section>
+
+        {/* Master Data Sumber Limbah */}
+        <WasteSourcesManager />
       </div>
 
       {/* Standard Save button at end of content */}

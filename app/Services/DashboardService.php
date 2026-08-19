@@ -26,11 +26,11 @@ class DashboardService
     }
 
     /**
-     * Get comprehensive dashboard summary with all KPIs (Cached for 5 mins)
+     * Get comprehensive dashboard summary with all KPIs (Cached KPIs for 5 mins)
      */
     public function getSummary(): array
     {
-        return Cache::remember('dashboard_summary', 300, function () {
+        $kpis = Cache::remember('dashboard_kpi_summary', 300, function () {
             $b3Stats = $this->b3Service->getStatistics();
             $domesticTodayStats = $this->domesticService->calculateDailyStats(today());
 
@@ -56,13 +56,15 @@ class DashboardService
 
                 // Notification Statistics
                 'notifications_unread' => Notification::unread()->count(),
-
-                // Recent Data
-                'recent_b3_transactions' => $this->b3Service->getRecentTransactions(5),
-                'recent_domestic_transactions' => $this->domesticService->getRecentTransactions(5),
-                'recent_alerts' => $this->getRecentAlerts(5),
             ];
         });
+
+        return array_merge($kpis, [
+            // Recent Data (fresh Eloquent models for Resource collections)
+            'recent_b3_transactions' => $this->b3Service->getRecentTransactions(5),
+            'recent_domestic_transactions' => $this->domesticService->getRecentTransactions(5),
+            'recent_alerts' => $this->getRecentAlerts(5),
+        ]);
     }
 
     /**
@@ -289,6 +291,7 @@ class DashboardService
     public static function clearCache(): void
     {
         Cache::forget('dashboard_summary');
+        Cache::forget('dashboard_kpi_summary');
         Cache::forget('dashboard_category_breakdown');
 
         $currentYear = (int) date('Y');

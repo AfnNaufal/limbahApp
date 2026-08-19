@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\DomesticTransactionController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SystemSettingController;
 use App\Http\Controllers\Api\WasteCategoryController;
+use App\Http\Controllers\Api\WasteSourceController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Waste Categories (read-only)
     Route::apiResource('waste-categories', WasteCategoryController::class)
         ->only(['index', 'show']);
+
+    // Waste Sources (Locations)
+    Route::delete('waste-sources/{waste_source}', [WasteSourceController::class, 'destroy'])
+        ->middleware('role:ADMIN_EHS');
+    Route::apiResource('waste-sources', WasteSourceController::class)->except(['destroy']);
 
     // B3 Transactions (Delete restricted to ADMIN_EHS)
     Route::delete('b3-transactions/{b3_transaction}', [B3TransactionController::class, 'destroy'])

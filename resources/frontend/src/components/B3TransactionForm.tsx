@@ -8,8 +8,10 @@ import {
 } from 'react';
 import {
     getWasteCategories,
+    getWasteSources,
     createB3TransactionApi,
     type CategoryItem as Category,
+    type WasteSourceItem as WasteSource,
     type CreateB3TransactionPayload as B3TransactionPayload,
 } from '../api';
 import { useApp } from '../context';
@@ -17,6 +19,7 @@ import {
     compressImage,
     type CompressionResult,
 } from '../utils/imageCompressor';
+import AddSourceModal from './common/AddSourceModal';
 
 import {
     Field,
@@ -76,6 +79,9 @@ export default function B3TransactionForm({
     const [form, setForm] = useState<FormState>(initialState);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loadingCategories, setLoadingCategories] = useState(true);
+    const [sources, setSources] = useState<WasteSource[]>([]);
+    const [loadingSources, setLoadingSources] = useState(true);
+    const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
     // State untuk kompresi gambar
@@ -94,14 +100,19 @@ export default function B3TransactionForm({
     useEffect(() => {
         let active = true;
 
-        async function loadCategories(): Promise<void> {
+        async function loadMasterData(): Promise<void> {
             try {
                 setLoadingCategories(true);
+                setLoadingSources(true);
 
-                const rows: Category[] = await getWasteCategories();
+                const [catRows, srcRows] = await Promise.all([
+                    getWasteCategories(),
+                    getWasteSources({ active: true }),
+                ]);
 
                 if (active) {
-                    setCategories(rows);
+                    setCategories(catRows);
+                    setSources(srcRows);
                 }
             } catch (error) {
                 if (active) {
@@ -110,22 +121,37 @@ export default function B3TransactionForm({
                         text:
                             error instanceof Error
                                 ? error.message
-                                : 'Kategori limbah gagal dimuat. Pastikan API dan database aktif.',
+                                : 'Data master gagal dimuat. Pastikan API dan database aktif.',
                     });
                 }
             } finally {
                 if (active) {
                     setLoadingCategories(false);
+                    setLoadingSources(false);
                 }
             }
         }
 
-        void loadCategories();
+        void loadMasterData();
 
         return () => {
             active = false;
         };
     }, []);
+
+    // Grouping sources by entity
+    const utSources = useMemo(
+        () => sources.filter((s) => s.entity === 'UT'),
+        [sources],
+    );
+    const utpeSources = useMemo(
+        () => sources.filter((s) => s.entity === 'UTPE'),
+        [sources],
+    );
+    const otherSources = useMemo(
+        () => sources.filter((s) => s.entity !== 'UT' && s.entity !== 'UTPE'),
+        [sources],
+    );
 
     // Cleanup object URL saat unmount
     useEffect(() => {
@@ -441,18 +467,124 @@ export default function B3TransactionForm({
                     <Grid>
                         {incoming ? (
                             <Field label="Sumber limbah" required>
-                                <input
-                                    style={inputStyle}
-                                    value={form.source}
-                                    onChange={(event) =>
-                                        update(
-                                            'source',
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="Contoh: Workshop UTPE"
-                                    required
-                                />
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        gap: 8,
+                                        alignItems: 'center',
+                                        flexWrap: 'nowrap',
+                                    }}
+                                >
+                                    <select
+                                        style={{
+                                            ...inputStyle,
+                                            flex: 1,
+                                            minWidth: 0,
+                                            cursor: 'pointer',
+                                        }}
+                                        value={form.source}
+                                        onChange={(event) => {
+                                            const val = event.target.value;
+                                            if (val === '__ADD_NEW__') {
+                                                setIsAddSourceOpen(true);
+                                            } else {
+                                                update('source', val);
+                                            }
+                                        }}
+                                        required
+                                        disabled={loadingSources}
+                                    >
+                                        <option value="">
+                                            {loadingSources
+                                                ? 'Memuat daftar lokasi...'
+                                                : '-- Pilih Lokasi Sumber Limbah --'}
+                                        </option>
+                                        {form.source &&
+                                            !sources.some(
+                                                (s) => s.name === form.source,
+                                            ) && (
+                                                <option value={form.source}>
+                                                    📍 {form.source} (Khusus)
+                                                </option>
+                                            )}
+                                        {utSources.length > 0 && (
+                                            <optgroup label="🏭 United Tractors (UT)">
+                                                {utSources.map((s) => (
+                                                    <option
+                                                        key={s.id}
+                                                        value={s.name}
+                                                    >
+                                                        {s.name}{' '}
+                                                        {s.code
+                                                            ? `(${s.code})`
+                                                            : ''}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                        {utpeSources.length > 0 && (
+                                            <optgroup label="🏗️ UTPE">
+                                                {utpeSources.map((s) => (
+                                                    <option
+                                                        key={s.id}
+                                                        value={s.name}
+                                                    >
+                                                        {s.name}{' '}
+                                                        {s.code
+                                                            ? `(${s.code})`
+                                                            : ''}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                        {otherSources.length > 0 && (
+                                            <optgroup label="🏢 Lokasi Lainnya">
+                                                {otherSources.map((s) => (
+                                                    <option
+                                                        key={s.id}
+                                                        value={s.name}
+                                                    >
+                                                        {s.name}{' '}
+                                                        {s.code
+                                                            ? `(${s.code})`
+                                                            : ''}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                        <optgroup label="➕ Opsi">
+                                            <option value="__ADD_NEW__">
+                                                ➕ + Tambah Lokasi Baru...
+                                            </option>
+                                        </optgroup>
+                                    </select>
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setIsAddSourceOpen(true)
+                                        }
+                                        title="Tambah lokasi sumber baru"
+                                        style={{
+                                            background: `${tokens.primary}18`,
+                                            border: `1px solid ${tokens.primary}50`,
+                                            borderRadius: tokens.radius,
+                                            color: tokens.primary,
+                                            padding: '8px 12px',
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap',
+                                            flexShrink: 0,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            transition: 'all 0.15s',
+                                        }}
+                                    >
+                                        ➕ Lokasi Baru
+                                    </button>
+                                </div>
                             </Field>
                         ) : (
                             <Field label="Tujuan penyerahan" required>
@@ -800,6 +932,22 @@ export default function B3TransactionForm({
                     onReset={reset}
                 />
             </form>
+
+            <AddSourceModal
+                isOpen={isAddSourceOpen}
+                onClose={() => setIsAddSourceOpen(false)}
+                onSuccess={(newSource) => {
+                    setSources((prev) => {
+                        const exists = prev.some((s) => s.id === newSource.id);
+                        return exists ? prev : [...prev, newSource];
+                    });
+                    update('source', newSource.name);
+                    setMessage({
+                        type: 'info',
+                        text: `Lokasi sumber "${newSource.name}" berhasil ditambahkan dan dipilih.`,
+                    });
+                }}
+            />
         </FormPage>
     );
 }

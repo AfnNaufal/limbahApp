@@ -239,7 +239,7 @@ export async function acknowledgeAlertApi(id: number | string, acknowledgedBy?: 
 }
 
 /* =========================================================
-   WASTE CATEGORIES
+   WASTE CATEGORIES & SOURCES (MASTER DATA)
    ========================================================= */
 
 export type CategoryItem = {
@@ -254,6 +254,58 @@ export async function getWasteCategories(): Promise<CategoryItem[]> {
   const res = await getApi<{ data: CategoryItem[] } | CategoryItem[]>('/api/waste-categories?per_page=100');
   if (Array.isArray(res)) return res;
   return res?.data ?? [];
+}
+
+export type WasteSourceItem = {
+  id: number;
+  name: string;
+  code?: string | null;
+  entity?: string;
+  description?: string | null;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export async function getWasteSources(params?: {
+  all?: boolean;
+  active?: boolean;
+  entity?: string;
+  search?: string;
+}): Promise<WasteSourceItem[]> {
+  const q = new URLSearchParams();
+  if (params?.all) q.set('all', '1');
+  if (params?.active !== undefined) q.set('active', params.active ? '1' : '0');
+  if (params?.entity) q.set('entity', params.entity);
+  if (params?.search) q.set('search', params.search);
+  q.set('per_page', '100');
+
+  const res = await getApi<{ data: WasteSourceItem[] } | WasteSourceItem[]>(`/api/waste-sources?${q.toString()}`);
+  if (Array.isArray(res)) return res;
+  return res?.data ?? [];
+}
+
+export async function createWasteSource(payload: {
+  name: string;
+  code?: string;
+  entity?: string;
+  description?: string;
+  is_active?: boolean;
+}): Promise<WasteSourceItem> {
+  const res = await postApi<{ data: WasteSourceItem } | WasteSourceItem>('/api/waste-sources', payload);
+  return (res as any)?.data ?? res;
+}
+
+export async function updateWasteSource(
+  id: number,
+  payload: Partial<WasteSourceItem>,
+): Promise<WasteSourceItem> {
+  const res = await putApi<{ data: WasteSourceItem } | WasteSourceItem>(`/api/waste-sources/${id}`, payload);
+  return (res as any)?.data ?? res;
+}
+
+export async function deleteWasteSource(id: number): Promise<void> {
+  return deleteApi(`/api/waste-sources/${id}`);
 }
 
 /* =========================================================

@@ -1,4 +1,7 @@
+import { useState, useEffect, useMemo } from 'react'
 import { useApp } from '../../context'
+import { getWasteSources, type WasteSourceItem } from '../../api'
+import AddSourceModal from '../common/AddSourceModal'
 
 interface B3EditModalProps {
   editingTx: any
@@ -32,6 +35,25 @@ export default function B3EditModal({
   saving,
 }: B3EditModalProps) {
   const { tokens } = useApp()
+  const [sources, setSources] = useState<WasteSourceItem[]>([])
+  const [loadingSources, setLoadingSources] = useState(false)
+  const [isAddSourceOpen, setIsAddSourceOpen] = useState(false)
+
+  useEffect(() => {
+    if (editingTx?.category === 'b3in') {
+      setLoadingSources(true)
+      getWasteSources({ active: true })
+        .then((res) => setSources(res))
+        .catch(() => {})
+        .finally(() => setLoadingSources(false))
+    }
+  }, [editingTx])
+
+  const utSources = useMemo(() => sources.filter((s) => s.entity === 'UT'), [sources])
+  const utpeSources = useMemo(() => sources.filter((s) => s.entity === 'UTPE'), [sources])
+  const otherSources = useMemo(() => sources.filter((s) => s.entity !== 'UT' && s.entity !== 'UTPE'), [sources])
+
+  const isCustomSource = editForm.source && !sources.some((s) => s.name === editForm.source)
 
   if (!editingTx) return null
 
@@ -90,13 +112,71 @@ export default function B3EditModal({
 
           {editingTx.category === 'b3in' ? (
             <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted, display: 'block', marginBottom: 4 }}>Sumber Limbah</label>
-              <input
-                type="text"
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: tokens.textMuted }}>Sumber Limbah</label>
+                <button
+                  type="button"
+                  onClick={() => setIsAddSourceOpen(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: tokens.primary,
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  ➕ Tambah Lokasi Baru
+                </button>
+              </div>
+              <select
                 value={editForm.source}
-                onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
+                onChange={(e) => {
+                  if (e.target.value === '__ADD_NEW__') {
+                    setIsAddSourceOpen(true)
+                  } else {
+                    setEditForm({ ...editForm, source: e.target.value })
+                  }
+                }}
+                disabled={loadingSources}
                 style={{ width: '100%', padding: '7px 10px', background: tokens.inputBg, border: `1px solid ${tokens.border}`, borderRadius: tokens.radius, fontSize: 13, color: tokens.text }}
-              />
+              >
+                <option value="">-- Pilih Lokasi Sumber Limbah --</option>
+                {isCustomSource && (
+                  <option value={editForm.source}>📍 {editForm.source} (Khusus)</option>
+                )}
+                {utSources.length > 0 && (
+                  <optgroup label="🏭 United Tractors (UT)">
+                    {utSources.map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name} {s.code ? `(${s.code})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {utpeSources.length > 0 && (
+                  <optgroup label="🏗️ UTPE">
+                    {utpeSources.map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name} {s.code ? `(${s.code})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {otherSources.length > 0 && (
+                  <optgroup label="🏢 Lokasi Lainnya">
+                    {otherSources.map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name} {s.code ? `(${s.code})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="➕ Opsi">
+                  <option value="__ADD_NEW__">➕ + Tambah Lokasi Baru...</option>
+                </optgroup>
+              </select>
             </div>
           ) : (
             <div>
@@ -175,6 +255,18 @@ export default function B3EditModal({
           </button>
         </div>
       </div>
+
+      <AddSourceModal
+        isOpen={isAddSourceOpen}
+        onClose={() => setIsAddSourceOpen(false)}
+        onSuccess={(newSource) => {
+          setSources((prev) => {
+            const exists = prev.some((s) => s.id === newSource.id)
+            return exists ? prev : [...prev, newSource]
+          })
+          setEditForm((prev) => ({ ...prev, source: newSource.name }))
+        }}
+      />
     </div>
   )
 }

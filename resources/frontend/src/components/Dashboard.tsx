@@ -109,14 +109,30 @@ export default function Dashboard() {
     try {
       setLoading(true)
       setApiError(false)
-      const [summary, trends, breakdown] = await Promise.all([
+      const [summaryRes, trendsRes, breakdownRes] = await Promise.allSettled([
         getDashboardSummary(),
         getDashboardTrends(12, year),
         getDashboardCategoryBreakdown(),
       ])
-      setSummaryData(summary)
-      setTrendsData(trends)
-      setBreakdownData(breakdown)
+
+      let hasSuccess = false
+
+      if (summaryRes.status === 'fulfilled' && summaryRes.value) {
+        setSummaryData(summaryRes.value)
+        hasSuccess = true
+      }
+      if (trendsRes.status === 'fulfilled' && trendsRes.value) {
+        setTrendsData(trendsRes.value)
+        hasSuccess = true
+      }
+      if (breakdownRes.status === 'fulfilled' && breakdownRes.value) {
+        setBreakdownData(breakdownRes.value)
+        hasSuccess = true
+      }
+
+      if (!hasSuccess && (summaryRes.status === 'rejected' || trendsRes.status === 'rejected' || breakdownRes.status === 'rejected')) {
+        setApiError(true)
+      }
     } catch (error) {
       console.error('Failed to load dashboard summary:', error)
       setApiError(true)

@@ -42,6 +42,7 @@ class DatabaseSeeder extends Seeder
         // Phase 1 Seeders
         $this->call([
             WasteCategorySeeder::class,
+            WasteSourceSeeder::class,
             B3TransactionSeeder::class,
             DomesticTransactionSeeder::class,
             NotificationSeeder::class,
