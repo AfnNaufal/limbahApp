@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 import { useApp } from '../../context'
 import { useIsMobile, useIsTablet } from '../../hooks/useMediaQuery'
 import WasteTypeDetailModal, { WasteSummaryItem } from './WasteTypeDetailModal'
+import B3SummaryTableView from './B3SummaryTableView'
+import B3SummaryCardsView from './B3SummaryCardsView'
 
 interface B3WasteSummaryProps {
   transactions: any[]
@@ -9,7 +11,7 @@ interface B3WasteSummaryProps {
 }
 
 export default function B3WasteSummary({ transactions, searchQuery = '' }: B3WasteSummaryProps) {
-  const { tokens, theme } = useApp()
+  const { tokens } = useApp()
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
 
@@ -17,8 +19,6 @@ export default function B3WasteSummary({ transactions, searchQuery = '' }: B3Was
   const [localSearch, setLocalSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'has_balance' | 'critical' | 'empty'>('all')
   const [selectedWaste, setSelectedWaste] = useState<WasteSummaryItem | null>(null)
-
-  const isGlass = theme === 'frosted' || theme === 'liquid'
 
   // Code mapping helper for standard waste names if code is missing
   const getStandardCode = (name: string, fallbackCode?: string): string => {
@@ -119,7 +119,6 @@ export default function B3WasteSummary({ transactions, searchQuery = '' }: B3Was
     return Object.values(map).map((entry) => {
       const balanceKg = Math.max(0, Number((entry.totalInKg - entry.totalOutKg).toFixed(1)))
       
-      // Calculate days in storage based on oldest active incoming batch
       let daysInStorage = 0
       if (balanceKg > 0 && entry.oldestInDate) {
         try {
@@ -154,7 +153,6 @@ export default function B3WasteSummary({ transactions, searchQuery = '' }: B3Was
         totalKg: Number(val.totalKg.toFixed(1)),
       })).sort((a, b) => b.totalKg - a.totalKg)
 
-      // Sort transactions descending by date
       entry.transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
       return {
@@ -194,7 +192,6 @@ export default function B3WasteSummary({ transactions, searchQuery = '' }: B3Was
 
       return true
     }).sort((a, b) => {
-      // Prioritize expired & warning first, then by balance descending
       if (a.status === 'expired' && b.status !== 'expired') return -1
       if (b.status === 'expired' && a.status !== 'expired') return 1
       if (a.status === 'warning' && b.status === 'safe') return -1
@@ -269,7 +266,6 @@ export default function B3WasteSummary({ transactions, searchQuery = '' }: B3Was
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      
       {/* 1. Header Metrics Strip (Neraca Overview) */}
       <div
         style={{
@@ -514,310 +510,16 @@ export default function B3WasteSummary({ transactions, searchQuery = '' }: B3Was
           </div>
         </div>
       ) : viewMode === 'table' ? (
-        
-        /* TABLE NERACA VIEW */
-        <div
-          style={{
-            border: `1px solid ${tokens.border}`,
-            borderRadius: tokens.radius,
-            overflowX: 'auto',
-            background: tokens.card,
-            boxShadow: tokens.shadow,
-          }}
-        >
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
-            <thead>
-              <tr style={{ background: tokens.bgSecondary, borderBottom: `1px solid ${tokens.border}` }}>
-                <th style={{ padding: '10px 14px', color: tokens.textMuted, fontWeight: 700 }}>KODE</th>
-                <th style={{ padding: '10px 14px', color: tokens.textMuted, fontWeight: 700 }}>JENIS LIMBAH</th>
-                <th style={{ padding: '10px 14px', color: tokens.textMuted, fontWeight: 700 }}>SUMBER TERBANYAK</th>
-                <th style={{ padding: '10px 14px', color: tokens.textMuted, fontWeight: 700, textAlign: 'right' }}>TOTAL MASUK</th>
-                <th style={{ padding: '10px 14px', color: tokens.textMuted, fontWeight: 700, textAlign: 'right' }}>TOTAL KELUAR</th>
-                <th style={{ padding: '10px 14px', color: tokens.textMuted, fontWeight: 700, textAlign: 'right' }}>SISA DI TPS</th>
-                <th style={{ padding: '10px 14px', color: tokens.textMuted, fontWeight: 700 }}>UTILISASI TPS</th>
-                <th style={{ padding: '10px 14px', color: tokens.textMuted, fontWeight: 700 }}>STATUS MASA SIMPAN</th>
-                <th style={{ padding: '10px 14px', color: tokens.textMuted, fontWeight: 700, textAlign: 'center' }}>AKSI</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredSummary.map((item, idx) => {
-                const utilPct = item.capacityKg > 0 ? Math.min(100, Math.round((item.balanceKg / item.capacityKg) * 100)) : 0
-                const topSource = item.sources[0]?.name || '-'
-
-                return (
-                  <tr
-                    key={idx}
-                    style={{
-                      borderBottom: `1px solid ${tokens.border}`,
-                      transition: 'background 0.12s ease',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => setSelectedWaste(item)}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = `${tokens.primary}08` }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-                  >
-                    {/* Kode */}
-                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                      <span
-                        style={{
-                          background: `${tokens.primary}18`,
-                          color: tokens.primary,
-                          fontSize: 11,
-                          fontWeight: 800,
-                          padding: '2px 7px',
-                          borderRadius: '4px',
-                          fontFamily: 'monospace',
-                        }}
-                      >
-                        {item.wasteCode}
-                      </span>
-                    </td>
-
-                    {/* Jenis Limbah */}
-                    <td style={{ padding: '10px 14px', fontWeight: 700, color: tokens.text, whiteSpace: 'nowrap' }}>
-                      {item.wasteName}
-                    </td>
-
-                    {/* Sumber */}
-                    <td style={{ padding: '10px 14px', color: tokens.textMuted, fontSize: 11.5 }}>
-                      {topSource}
-                    </td>
-
-                    {/* Masuk */}
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: tokens.chartB3In }}>
-                      {item.totalInKg.toLocaleString('id-ID', { minimumFractionDigits: 1 })} kg
-                    </td>
-
-                    {/* Keluar */}
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: tokens.chartB3Out }}>
-                      {item.totalOutKg.toLocaleString('id-ID', { minimumFractionDigits: 1 })} kg
-                    </td>
-
-                    {/* Sisa Saldo di TPS */}
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: item.balanceKg > 0 ? tokens.text : tokens.textMuted }}>
-                      {item.balanceKg.toLocaleString('id-ID', { minimumFractionDigits: 1 })} kg
-                    </td>
-
-                    {/* Utilisasi Progress Bar */}
-                    <td style={{ padding: '10px 14px', minWidth: '130px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ flex: 1, height: 6, background: tokens.bgSecondary, borderRadius: 3, overflow: 'hidden' }}>
-                          <div
-                            style={{
-                              width: `${utilPct}%`,
-                              height: '100%',
-                              background: utilPct > 80 ? tokens.danger : utilPct > 50 ? tokens.warning : tokens.primary,
-                            }}
-                          />
-                        </div>
-                        <span style={{ fontSize: 10.5, fontWeight: 700, color: tokens.textMuted, minWidth: '28px', textAlign: 'right' }}>
-                          {utilPct}%
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Status Masa Simpan */}
-                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                      {item.balanceKg <= 0 ? (
-                        <span style={{ fontSize: 11, color: tokens.textMuted, background: `${tokens.textMuted}15`, padding: '2px 8px', borderRadius: '4px' }}>
-                          ⚪ Nihil / Kosong
-                        </span>
-                      ) : item.status === 'expired' ? (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', background: '#ef444420', padding: '3px 8px', borderRadius: '4px' }}>
-                          🔴 {item.daysInStorage}/{item.maxStorageDays} Hari (Lewat)
-                        </span>
-                      ) : item.status === 'warning' ? (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', background: '#f59e0b20', padding: '3px 8px', borderRadius: '4px' }}>
-                          🟡 {item.daysInStorage}/{item.maxStorageDays} Hari (Warning)
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: 11, fontWeight: 600, color: '#22c55e', background: '#22c55e18', padding: '3px 8px', borderRadius: '4px' }}>
-                          🟢 {item.daysInStorage}/{item.maxStorageDays} Hari (Aman)
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Aksi */}
-                    <td style={{ padding: '10px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedWaste(item)
-                        }}
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: '4px',
-                          border: `1px solid ${tokens.border}`,
-                          background: `${tokens.primary}12`,
-                          color: tokens.primary,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          fontFamily: tokens.fontFamily,
-                        }}
-                      >
-                        Detail ↗
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-
-            {/* Total Row */}
-            <tfoot>
-              <tr style={{ background: tokens.bgSecondary, borderTop: `2px solid ${tokens.border}`, fontWeight: 800 }}>
-                <td colSpan={3} style={{ padding: '10px 14px', color: tokens.text }}>
-                  TOTAL ({filteredSummary.length} Jenis Limbah)
-                </td>
-                <td style={{ padding: '10px 14px', textAlign: 'right', color: tokens.chartB3In }}>
-                  {totals.totalIn.toLocaleString('id-ID', { minimumFractionDigits: 1 })} kg
-                </td>
-                <td style={{ padding: '10px 14px', textAlign: 'right', color: tokens.chartB3Out }}>
-                  {totals.totalOut.toLocaleString('id-ID', { minimumFractionDigits: 1 })} kg
-                </td>
-                <td style={{ padding: '10px 14px', textAlign: 'right', color: tokens.primary }}>
-                  {totals.totalBal.toLocaleString('id-ID', { minimumFractionDigits: 1 })} kg
-                </td>
-                <td colSpan={3} style={{ padding: '10px 14px', color: tokens.textMuted, fontSize: 11 }}>
-                  Format Rekapitulasi Neraca TPS B3
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <B3SummaryTableView
+          items={filteredSummary}
+          totals={totals}
+          onSelectWaste={setSelectedWaste}
+        />
       ) : (
-
-        /* BENTO CARDS GRID VIEW */
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
-            gap: 14,
-          }}
-        >
-          {filteredSummary.map((item, idx) => {
-            const utilPct = item.capacityKg > 0 ? Math.min(100, Math.round((item.balanceKg / item.capacityKg) * 100)) : 0
-
-            return (
-              <div
-                key={idx}
-                onClick={() => setSelectedWaste(item)}
-                style={{
-                  background: tokens.card,
-                  border: `1px solid ${tokens.cardBorder}`,
-                  borderRadius: tokens.radius,
-                  padding: '16px',
-                  boxShadow: tokens.shadow,
-                  backdropFilter: isGlass ? tokens.glassBlur : undefined,
-                  WebkitBackdropFilter: isGlass ? tokens.glassBlur : undefined,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: 14,
-                  transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
-                  borderTop: item.status === 'expired'
-                    ? `4px solid ${tokens.danger}`
-                    : item.status === 'warning'
-                      ? `4px solid ${tokens.warning}`
-                      : `4px solid ${tokens.primary}`,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = tokens.shadow
-                }}
-              >
-                {/* Card Top */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span
-                      style={{
-                        background: `${tokens.primary}18`,
-                        color: tokens.primary,
-                        fontSize: 11,
-                        fontWeight: 800,
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontFamily: 'monospace',
-                      }}
-                    >
-                      {item.wasteCode}
-                    </span>
-                    <span style={{ fontSize: 11, color: tokens.textMuted }}>
-                      {item.txCount} Transaksi
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: 14.5, fontWeight: 800, color: tokens.text }}>
-                    {item.wasteName}
-                  </div>
-                </div>
-
-                {/* Card Body: Masuk, Keluar, Saldo */}
-                <div style={{ background: tokens.bgSecondary, padding: '10px 12px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, color: tokens.textMuted }}>Sisa Saldo di TPS:</span>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: tokens.text }}>
-                      {item.balanceKg.toLocaleString('id-ID')} <span style={{ fontSize: 11, fontWeight: 500, color: tokens.textMuted }}>kg</span>
-                    </span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: tokens.textMuted, marginBottom: 3 }}>
-                      <span>Kapasitas TPS</span>
-                      <span>{utilPct}% ({item.balanceKg} / {item.capacityKg} kg)</span>
-                    </div>
-                    <div style={{ width: '100%', height: 5, background: tokens.border, borderRadius: 3, overflow: 'hidden' }}>
-                      <div
-                        style={{
-                          width: `${utilPct}%`,
-                          height: '100%',
-                          background: utilPct > 80 ? tokens.danger : utilPct > 50 ? tokens.warning : tokens.primary,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* In and Out mini badges */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, borderTop: `1px solid ${tokens.border}`, paddingTop: 6 }}>
-                    <div>
-                      <span style={{ color: tokens.textMuted }}>Masuk: </span>
-                      <span style={{ fontWeight: 700, color: tokens.chartB3In }}>{item.totalInKg.toLocaleString('id-ID')} kg</span>
-                    </div>
-                    <div>
-                      <span style={{ color: tokens.textMuted }}>Keluar: </span>
-                      <span style={{ fontWeight: 700, color: tokens.chartB3Out }}>{item.totalOutKg.toLocaleString('id-ID')} kg</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card Bottom: Status Masa Simpan & Action */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11.5 }}>
-                  {item.balanceKg <= 0 ? (
-                    <span style={{ color: tokens.textMuted }}>⚪ Nihil / Kosong</span>
-                  ) : item.status === 'expired' ? (
-                    <span style={{ fontWeight: 700, color: '#ef4444' }}>🔴 {item.daysInStorage} hr (Lewat Batas)</span>
-                  ) : item.status === 'warning' ? (
-                    <span style={{ fontWeight: 700, color: '#f59e0b' }}>🟡 {item.daysInStorage} hr (Warning)</span>
-                  ) : (
-                    <span style={{ fontWeight: 600, color: '#22c55e' }}>🟢 {item.daysInStorage} hr (Aman)</span>
-                  )}
-
-                  <span style={{ fontWeight: 700, color: tokens.primary }}>
-                    Buka Logbook ↗
-                  </span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <B3SummaryCardsView
+          items={filteredSummary}
+          onSelectWaste={setSelectedWaste}
+        />
       )}
 
       {/* 4. Drill-Down Detail Modal */}
@@ -825,7 +527,6 @@ export default function B3WasteSummary({ transactions, searchQuery = '' }: B3Was
         item={selectedWaste}
         onClose={() => setSelectedWaste(null)}
       />
-
     </div>
   )
 }
