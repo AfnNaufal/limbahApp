@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -13,6 +14,7 @@ class AuthController extends Controller
 {
     /**
      * Register a new user and issue an API token.
+     * Note: Public registration always assigns the default OPERATOR_TPS role.
      */
     public function register(Request $request): JsonResponse
     {
@@ -20,7 +22,6 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
-            'role' => 'nullable|string|in:ADMIN_EHS,OPERATOR_TPS,AUDITOR',
             'department' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:30',
         ]);
@@ -29,7 +30,7 @@ class AuthController extends Controller
             'name' => $validated['name'],
             'email' => strtolower(trim($validated['email'])),
             'password' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?? 'OPERATOR_TPS',
+            'role' => UserRole::OPERATOR_TPS,
             'department' => $validated['department'] ?? null,
             'phone' => $validated['phone'] ?? null,
             'is_active' => true,
@@ -63,6 +64,13 @@ class AuthController extends Controller
                 'status' => 'error',
                 'message' => 'Email atau password yang Anda masukkan salah.',
             ], 401);
+        }
+
+        if (! $user->is_active) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akun Anda telah dinonaktifkan. Silakan hubungi Administrator EHS.',
+            ], 403);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;

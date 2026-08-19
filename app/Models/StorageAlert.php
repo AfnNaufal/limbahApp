@@ -69,6 +69,7 @@ class StorageAlert extends Model
         $this->update([
             'acknowledged_at' => now(),
             'acknowledged_by' => $acknowledgedBy,
+            'is_active' => false,
         ]);
         return $this;
     }

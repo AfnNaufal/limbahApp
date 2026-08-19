@@ -38,12 +38,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // B3 Transactions (Delete restricted to ADMIN_EHS)
     Route::delete('b3-transactions/{b3_transaction}', [B3TransactionController::class, 'destroy'])
         ->middleware('role:ADMIN_EHS');
-    Route::apiResource('b3-transactions', B3TransactionController::class);
+    Route::apiResource('b3-transactions', B3TransactionController::class)->except(['destroy']);
 
     // Domestic Transactions (Delete restricted to ADMIN_EHS)
     Route::delete('domestic-transactions/{domestic_transaction}', [DomesticTransactionController::class, 'destroy'])
         ->middleware('role:ADMIN_EHS');
-    Route::apiResource('domestic-transactions', DomesticTransactionController::class);
+    Route::apiResource('domestic-transactions', DomesticTransactionController::class)->except(['destroy']);
 
     // Notifications
     Route::prefix('notifications')->group(function () {

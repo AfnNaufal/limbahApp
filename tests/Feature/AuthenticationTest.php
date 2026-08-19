@@ -106,4 +106,24 @@ class AuthenticationTest extends TestCase
 
         $this->assertCount(0, $user->tokens);
     }
+
+    public function test_deactivated_user_cannot_login(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'inactive@limbah.com',
+            'password' => bcrypt('secret123'),
+            'is_active' => false,
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'inactive@limbah.com',
+            'password' => 'secret123',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'status' => 'error',
+                'message' => 'Akun Anda telah dinonaktifkan. Silakan hubungi Administrator EHS.',
+            ]);
+    }
 }

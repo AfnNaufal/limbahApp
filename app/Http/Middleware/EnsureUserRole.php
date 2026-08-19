@@ -26,9 +26,9 @@ class EnsureUserRole
         }
 
         if (!empty($roles)) {
-            $userRoleValue = is_string($user->role) ? $user->role : ($user->role?->value ?? 'ADMIN_EHS');
+            $userRoleValue = is_string($user->role) ? $user->role : ($user->role?->value ?? null);
 
-            if (!in_array($userRoleValue, $roles, true)) {
+            if (! $userRoleValue || ! in_array($userRoleValue, $roles, true)) {
                 return response()->json([
                     'message' => 'Anda tidak memiliki hak akses (role) untuk melakukan operasi ini.',
                     'status' => 'forbidden',

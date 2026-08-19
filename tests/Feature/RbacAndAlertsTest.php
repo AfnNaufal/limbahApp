@@ -18,7 +18,7 @@ class RbacAndAlertsTest extends TestCase
     protected $seed = true;
 
     /**
-     * Test registration with role
+     * Test registration always defaults to OPERATOR_TPS and ignores role escalation
      */
     public function test_user_registration_with_role(): void
     {
@@ -26,7 +26,7 @@ class RbacAndAlertsTest extends TestCase
             'name' => 'John Operator',
             'email' => 'operator@monowa.test',
             'password' => 'password123',
-            'role' => 'OPERATOR_TPS',
+            'role' => 'ADMIN_EHS', // Attempted privilege escalation
             'department' => 'TPS Area 1',
             'phone' => '081234567890',
         ]);
@@ -58,9 +58,9 @@ class RbacAndAlertsTest extends TestCase
         ]);
 
         $response = $this->deleteJson("/api/b3-transactions/{$tx->id}");
-        $response->assertStatus(200);
+        $response->assertStatus(204);
 
-        $this->assertDatabaseMissing('b3_transactions', ['id' => $tx->id]);
+        $this->assertSoftDeleted('b3_transactions', ['id' => $tx->id]);
     }
 
     /**
@@ -114,7 +114,7 @@ class RbacAndAlertsTest extends TestCase
 
         $alert = StorageAlert::create([
             'b3_transaction_id' => $tx->id,
-            'alert_type' => 'H-7',
+            'alert_type' => 'STORAGE_NEAR_DEADLINE',
             'deadline_at' => $tx->storage_deadline_at,
             'is_active' => true,
         ]);

@@ -22,7 +22,7 @@ class ApiPhase1Test extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         Sanctum::actingAs($user);
     }
     /**
