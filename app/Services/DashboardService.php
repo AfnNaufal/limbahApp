@@ -7,6 +7,7 @@ use App\Models\DomesticTransaction;
 use App\Models\Notification;
 use App\Models\StorageAlert;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardService
 {
@@ -25,41 +26,43 @@ class DashboardService
     }
 
     /**
-     * Get comprehensive dashboard summary with all KPIs
+     * Get comprehensive dashboard summary with all KPIs (Cached for 5 mins)
      */
     public function getSummary(): array
     {
-        $b3Stats = $this->b3Service->getStatistics();
-        $domesticTodayStats = $this->domesticService->calculateDailyStats(today());
+        return Cache::remember('dashboard_summary', 300, function () {
+            $b3Stats = $this->b3Service->getStatistics();
+            $domesticTodayStats = $this->domesticService->calculateDailyStats(today());
 
-        return [
-            // B3 Statistics
-            'b3_total_weight_kg' => $b3Stats['total_weight_kg'],
-            'b3_count_in' => $b3Stats['in_count'],
-            'b3_count_out' => $b3Stats['out_count'],
-            'b3_in_weight_kg' => $b3Stats['in_weight_kg'],
-            'b3_out_weight_kg' => $b3Stats['out_weight_kg'],
-            'b3_pending_count' => $b3Stats['pending_count'],
+            return [
+                // B3 Statistics
+                'b3_total_weight_kg' => $b3Stats['total_weight_kg'],
+                'b3_count_in' => $b3Stats['in_count'],
+                'b3_count_out' => $b3Stats['out_count'],
+                'b3_in_weight_kg' => $b3Stats['in_weight_kg'],
+                'b3_out_weight_kg' => $b3Stats['out_weight_kg'],
+                'b3_pending_count' => $b3Stats['pending_count'],
 
-            // Domestic Statistics (Today)
-            'domestic_today_organic_kg' => $domesticTodayStats['organic_kg'],
-            'domestic_today_inorganic_kg' => $domesticTodayStats['inorganic_kg'],
-            'domestic_today_total_kg' => $domesticTodayStats['total_kg'],
+                // Domestic Statistics (Today)
+                'domestic_today_organic_kg' => $domesticTodayStats['organic_kg'],
+                'domestic_today_inorganic_kg' => $domesticTodayStats['inorganic_kg'],
+                'domestic_today_total_kg' => $domesticTodayStats['total_kg'],
 
-            // Alert Statistics
-            'storage_alerts_active' => StorageAlert::active()->count(),
-            'storage_alerts_expired' => StorageAlert::active()
-                ->where('deadline_at', '<', now())
-                ->count(),
+                // Alert Statistics
+                'storage_alerts_active' => StorageAlert::active()->count(),
+                'storage_alerts_expired' => StorageAlert::active()
+                    ->where('deadline_at', '<', now())
+                    ->count(),
 
-            // Notification Statistics
-            'notifications_unread' => Notification::unread()->count(),
+                // Notification Statistics
+                'notifications_unread' => Notification::unread()->count(),
 
-            // Recent Data
-            'recent_b3_transactions' => $this->b3Service->getRecentTransactions(5),
-            'recent_domestic_transactions' => $this->domesticService->getRecentTransactions(5),
-            'recent_alerts' => $this->getRecentAlerts(5),
-        ];
+                // Recent Data
+                'recent_b3_transactions' => $this->b3Service->getRecentTransactions(5),
+                'recent_domestic_transactions' => $this->domesticService->getRecentTransactions(5),
+                'recent_alerts' => $this->getRecentAlerts(5),
+            ];
+        });
     }
 
     /**
@@ -175,103 +178,126 @@ class DashboardService
     }
 
     /**
-     * Get monthly trends
+     * Get monthly trends (Cached for 10 mins)
      */
     public function getMonthlyTrends(int $months = 12, ?int $year = null): array
     {
-        $startDate = $year ? Carbon::create($year, 1, 1)->startOfDay() : now()->subMonths($months - 1)->startOfMonth()->startOfDay();
-        $endDate = $year ? Carbon::create($year, 12, 31)->endOfDay() : now()->endOfMonth()->endOfDay();
+        $cacheKey = 'dashboard_trends_' . ($year ?? 'all') . '_' . $months;
 
-        // Query B3 transactions grouped by YYYY-MM
-        $b3Stats = B3Transaction::selectRaw("
-                DATE_FORMAT(date, '%Y-%m') as ym,
-                SUM(CASE WHEN transaction_type = 'IN' THEN weight_kg ELSE 0 END) as in_weight,
-                SUM(CASE WHEN transaction_type = 'OUT' THEN weight_kg ELSE 0 END) as out_weight
-            ")
-            ->whereBetween('date', [$startDate, $endDate])
-            ->groupBy('ym')
-            ->get()
-            ->keyBy('ym');
+        return Cache::remember($cacheKey, 600, function () use ($months, $year) {
+            $startDate = $year ? Carbon::create($year, 1, 1)->startOfDay() : now()->subMonths($months - 1)->startOfMonth()->startOfDay();
+            $endDate = $year ? Carbon::create($year, 12, 31)->endOfDay() : now()->endOfMonth()->endOfDay();
 
-        // Query Domestic transactions grouped by YYYY-MM
-        $domStats = DomesticTransaction::selectRaw("
-                DATE_FORMAT(date, '%Y-%m') as ym,
-                SUM(organic_weight_kg) as organic_weight,
-                SUM(inorganic_weight_kg) as inorganic_weight,
-                SUM(total_weight_kg) as total_weight
-            ")
-            ->whereBetween('date', [$startDate, $endDate])
-            ->groupBy('ym')
-            ->get()
-            ->keyBy('ym');
+            // Query B3 transactions grouped by YYYY-MM
+            $b3Stats = B3Transaction::selectRaw("
+                    DATE_FORMAT(date, '%Y-%m') as ym,
+                    SUM(CASE WHEN transaction_type = 'IN' THEN weight_kg ELSE 0 END) as in_weight,
+                    SUM(CASE WHEN transaction_type = 'OUT' THEN weight_kg ELSE 0 END) as out_weight
+                ")
+                ->whereBetween('date', [$startDate, $endDate])
+                ->groupBy('ym')
+                ->get()
+                ->keyBy('ym');
 
-        $trends = [];
-        $totalSteps = $year ? 12 : $months;
+            // Query Domestic transactions grouped by YYYY-MM
+            $domStats = DomesticTransaction::selectRaw("
+                    DATE_FORMAT(date, '%Y-%m') as ym,
+                    SUM(organic_weight_kg) as organic_weight,
+                    SUM(inorganic_weight_kg) as inorganic_weight,
+                    SUM(total_weight_kg) as total_weight
+                ")
+                ->whereBetween('date', [$startDate, $endDate])
+                ->groupBy('ym')
+                ->get()
+                ->keyBy('ym');
 
-        for ($i = 0; $i < $totalSteps; $i++) {
-            $date = $year 
-                ? Carbon::create($year, $i + 1, 1)
-                : now()->subMonths($months - 1 - $i);
+            $trends = [];
+            $totalSteps = $year ? 12 : $months;
 
-            $ym = $date->format('Y-m');
-            $b3Row = $b3Stats->get($ym);
-            $domRow = $domStats->get($ym);
+            for ($i = 0; $i < $totalSteps; $i++) {
+                $date = $year 
+                    ? Carbon::create($year, $i + 1, 1)
+                    : now()->subMonths($months - 1 - $i);
 
-            $b3InWeight = (float) ($b3Row?->in_weight ?? 0);
-            $b3OutWeight = (float) ($b3Row?->out_weight ?? 0);
+                $ym = $date->format('Y-m');
+                $b3Row = $b3Stats->get($ym);
+                $domRow = $domStats->get($ym);
 
-            $domOrganicWeight = (float) ($domRow?->organic_weight ?? 0);
-            $domInorganicWeight = (float) ($domRow?->inorganic_weight ?? 0);
-            $domTotalWeight = (float) ($domRow?->total_weight ?? 0);
+                $b3InWeight = (float) ($b3Row?->in_weight ?? 0);
+                $b3OutWeight = (float) ($b3Row?->out_weight ?? 0);
 
-            $trends[] = [
-                'month' => $ym,
-                'month_name' => $year ? $date->format('M') : $date->format('M Y'),
-                'b3_in_weight_kg' => $b3InWeight,
-                'b3_out_weight_kg' => $b3OutWeight,
-                'b3_weight_kg' => $b3InWeight + $b3OutWeight,
-                'domestic_organic_kg' => $domOrganicWeight,
-                'domestic_inorganic_kg' => $domInorganicWeight,
-                'domestic_weight_kg' => $domTotalWeight > 0 ? $domTotalWeight : ($domOrganicWeight + $domInorganicWeight),
-            ];
-        }
+                $domOrganicWeight = (float) ($domRow?->organic_weight ?? 0);
+                $domInorganicWeight = (float) ($domRow?->inorganic_weight ?? 0);
+                $domTotalWeight = (float) ($domRow?->total_weight ?? 0);
 
-        return $trends;
+                $trends[] = [
+                    'month' => $ym,
+                    'month_name' => $year ? $date->format('M') : $date->format('M Y'),
+                    'b3_in_weight_kg' => $b3InWeight,
+                    'b3_out_weight_kg' => $b3OutWeight,
+                    'b3_weight_kg' => $b3InWeight + $b3OutWeight,
+                    'domestic_organic_kg' => $domOrganicWeight,
+                    'domestic_inorganic_kg' => $domInorganicWeight,
+                    'domestic_weight_kg' => $domTotalWeight > 0 ? $domTotalWeight : ($domOrganicWeight + $domInorganicWeight),
+                ];
+            }
+
+            return $trends;
+        });
     }
 
     /**
-     * Get category breakdown
+     * Get category breakdown (Cached for 10 mins)
      */
     public function getCategoryBreakdown(): array
     {
-        return B3Transaction::join('waste_categories', 'b3_transactions.waste_category_id', '=', 'waste_categories.id')
-            ->selectRaw('
-                waste_categories.id as category_id,
-                waste_categories.name as category_name,
-                waste_categories.code as category_code,
-                COUNT(*) as transaction_count,
-                COALESCE(SUM(b3_transactions.weight_kg), 0) as total_weight_kg,
-                COALESCE(SUM(CASE WHEN b3_transactions.transaction_type = "IN" THEN b3_transactions.weight_kg ELSE 0 END), 0) as in_weight_kg,
-                COALESCE(SUM(CASE WHEN b3_transactions.transaction_type = "OUT" THEN b3_transactions.weight_kg ELSE 0 END), 0) as out_weight_kg,
-                SUM(CASE WHEN b3_transactions.transaction_type = "IN" THEN 1 ELSE 0 END) as in_count,
-                SUM(CASE WHEN b3_transactions.transaction_type = "OUT" THEN 1 ELSE 0 END) as out_count
-            ')
-            ->groupBy('waste_categories.id', 'waste_categories.name', 'waste_categories.code')
-            ->get()
-            ->map(function ($row) {
-                return [
-                    'category_id' => (int) $row->category_id,
-                    'category_name' => $row->category_name,
-                    'category_code' => $row->category_code,
-                    'transaction_count' => (int) $row->transaction_count,
-                    'total_weight_kg' => (float) $row->total_weight_kg,
-                    'in_weight_kg' => (float) $row->in_weight_kg,
-                    'out_weight_kg' => (float) $row->out_weight_kg,
-                    'in_count' => (int) $row->in_count,
-                    'out_count' => (int) $row->out_count,
-                ];
-            })
-            ->toArray();
+        return Cache::remember('dashboard_category_breakdown', 600, function () {
+            return B3Transaction::join('waste_categories', 'b3_transactions.waste_category_id', '=', 'waste_categories.id')
+                ->selectRaw('
+                    waste_categories.id as category_id,
+                    waste_categories.name as category_name,
+                    waste_categories.code as category_code,
+                    COUNT(*) as transaction_count,
+                    COALESCE(SUM(b3_transactions.weight_kg), 0) as total_weight_kg,
+                    COALESCE(SUM(CASE WHEN b3_transactions.transaction_type = "IN" THEN b3_transactions.weight_kg ELSE 0 END), 0) as in_weight_kg,
+                    COALESCE(SUM(CASE WHEN b3_transactions.transaction_type = "OUT" THEN b3_transactions.weight_kg ELSE 0 END), 0) as out_weight_kg,
+                    SUM(CASE WHEN b3_transactions.transaction_type = "IN" THEN 1 ELSE 0 END) as in_count,
+                    SUM(CASE WHEN b3_transactions.transaction_type = "OUT" THEN 1 ELSE 0 END) as out_count
+                ')
+                ->groupBy('waste_categories.id', 'waste_categories.name', 'waste_categories.code')
+                ->get()
+                ->map(function ($row) {
+                    return [
+                        'category_id' => (int) $row->category_id,
+                        'category_name' => $row->category_name,
+                        'category_code' => $row->category_code,
+                        'transaction_count' => (int) $row->transaction_count,
+                        'total_weight_kg' => (float) $row->total_weight_kg,
+                        'in_weight_kg' => (float) $row->in_weight_kg,
+                        'out_weight_kg' => (float) $row->out_weight_kg,
+                        'in_count' => (int) $row->in_count,
+                        'out_count' => (int) $row->out_count,
+                    ];
+                })
+                ->toArray();
+        });
+    }
+
+    /**
+     * Clear all cached dashboard KPIs, trends, and category aggregations.
+     */
+    public static function clearCache(): void
+    {
+        Cache::forget('dashboard_summary');
+        Cache::forget('dashboard_category_breakdown');
+
+        $currentYear = (int) date('Y');
+        for ($y = $currentYear - 3; $y <= $currentYear + 2; $y++) {
+            Cache::forget("dashboard_trends_{$y}_12");
+            Cache::forget("dashboard_trends_{$y}_6");
+        }
+        Cache::forget('dashboard_trends_all_12');
+        Cache::forget('dashboard_trends_all_6');
     }
 
     /**

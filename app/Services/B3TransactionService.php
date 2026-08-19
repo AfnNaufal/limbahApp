@@ -29,6 +29,7 @@ class B3TransactionService
             }
 
             $transaction = B3Transaction::create($data);
+            DashboardService::clearCache();
 
             try {
                 $type = ($transaction->transaction_type?->value ?? (string) $transaction->transaction_type) === 'IN' ? 'b3in' : 'b3out';
@@ -71,7 +72,20 @@ class B3TransactionService
             }
 
             $transaction->update($data);
+            DashboardService::clearCache();
             return $transaction;
+        });
+    }
+
+    /**
+     * Delete a B3 transaction
+     */
+    public function deleteTransaction(B3Transaction $transaction): bool
+    {
+        return DB::transaction(function () use ($transaction) {
+            $deleted = $transaction->delete();
+            DashboardService::clearCache();
+            return (bool) $deleted;
         });
     }
 
@@ -255,14 +269,6 @@ class B3TransactionService
         }
 
         return $alertsCreated;
-    }
-
-    /**
-     * Delete a transaction
-     */
-    public function deleteTransaction(B3Transaction $transaction): bool
-    {
-        return (bool) $transaction->delete();
     }
 
     /**

@@ -21,6 +21,7 @@ class DomesticTransactionService
             }
 
             $transaction = DomesticTransaction::create($data);
+            DashboardService::clearCache();
 
             try {
                 $totalWeight = (float) ($transaction->total_weight_kg ?? ((float) ($transaction->organic_weight_kg ?? 0) + (float) ($transaction->inorganic_weight_kg ?? 0)));
@@ -54,7 +55,20 @@ class DomesticTransactionService
             }
 
             $transaction->update($data);
+            DashboardService::clearCache();
             return $transaction;
+        });
+    }
+
+    /**
+     * Delete a domestic transaction
+     */
+    public function deleteTransaction(DomesticTransaction $transaction): bool
+    {
+        return DB::transaction(function () use ($transaction) {
+            $deleted = $transaction->delete();
+            DashboardService::clearCache();
+            return (bool) $deleted;
         });
     }
 
@@ -179,14 +193,6 @@ class DomesticTransactionService
         return DomesticTransaction::bySession($session)
             ->orderBy('date', 'desc')
             ->paginate($perPage);
-    }
-
-    /**
-     * Delete a transaction
-     */
-    public function deleteTransaction(DomesticTransaction $transaction): bool
-    {
-        return (bool) $transaction->delete();
     }
 
     /**

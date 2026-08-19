@@ -294,4 +294,36 @@ class ApiPhase1Test extends TestCase
 
         $response->assertStatus(404);
     }
+
+    /**
+     * Test dashboard caching and automatic invalidation on new transactions
+     */
+    public function test_dashboard_caching_and_cache_invalidation()
+    {
+        // 1. Initial dashboard summary request caches the result
+        $firstResponse = $this->getJson('/api/dashboard/summary');
+        $firstResponse->assertStatus(200);
+        $initialInWeight = $firstResponse->json('data.b3_in_weight_kg');
+
+        // 2. Create a new B3 transaction (triggers DashboardService::clearCache())
+        $category = WasteCategory::first();
+        $this->postJson('/api/b3-transactions', [
+            'transaction_type' => 'IN',
+            'waste_category_id' => $category->id,
+            'waste_code' => $category->code,
+            'waste_name' => $category->name,
+            'date' => now()->toDateString(),
+            'storage_deadline_at' => now()->addDays(90)->toDateString(),
+            'source' => 'Lab Pengujian',
+            'weight_kg' => 250.0,
+            'status' => 'PENDING',
+        ])->assertStatus(201);
+
+        // 3. Second dashboard summary request should immediately reflect the updated total
+        $secondResponse = $this->getJson('/api/dashboard/summary');
+        $secondResponse->assertStatus(200);
+        $updatedInWeight = $secondResponse->json('data.b3_in_weight_kg');
+
+        $this->assertEquals((float) $initialInWeight + 250.0, (float) $updatedInWeight);
+    }
 }
