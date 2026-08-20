@@ -39,17 +39,29 @@ Route::middleware('auth:sanctum')->group(function () {
     // Waste Sources (Locations)
     Route::delete('waste-sources/{waste_source}', [WasteSourceController::class, 'destroy'])
         ->middleware('role:ADMIN_EHS');
-    Route::apiResource('waste-sources', WasteSourceController::class)->except(['destroy']);
+    Route::post('waste-sources', [WasteSourceController::class, 'store'])
+        ->middleware('role:ADMIN_EHS,OPERATOR_TPS');
+    Route::match(['put', 'patch'], 'waste-sources/{waste_source}', [WasteSourceController::class, 'update'])
+        ->middleware('role:ADMIN_EHS,OPERATOR_TPS');
+    Route::apiResource('waste-sources', WasteSourceController::class)->except(['destroy', 'store', 'update']);
 
-    // B3 Transactions (Delete restricted to ADMIN_EHS)
+    // B3 Transactions (Delete restricted to ADMIN_EHS, Store/Update restricted to ADMIN_EHS,OPERATOR_TPS)
     Route::delete('b3-transactions/{b3_transaction}', [B3TransactionController::class, 'destroy'])
         ->middleware('role:ADMIN_EHS');
-    Route::apiResource('b3-transactions', B3TransactionController::class)->except(['destroy']);
+    Route::post('b3-transactions', [B3TransactionController::class, 'store'])
+        ->middleware('role:ADMIN_EHS,OPERATOR_TPS');
+    Route::match(['put', 'patch'], 'b3-transactions/{b3_transaction}', [B3TransactionController::class, 'update'])
+        ->middleware('role:ADMIN_EHS,OPERATOR_TPS');
+    Route::apiResource('b3-transactions', B3TransactionController::class)->except(['destroy', 'store', 'update']);
 
-    // Domestic Transactions (Delete restricted to ADMIN_EHS)
+    // Domestic Transactions (Delete restricted to ADMIN_EHS, Store/Update restricted to ADMIN_EHS,OPERATOR_TPS)
     Route::delete('domestic-transactions/{domestic_transaction}', [DomesticTransactionController::class, 'destroy'])
         ->middleware('role:ADMIN_EHS');
-    Route::apiResource('domestic-transactions', DomesticTransactionController::class)->except(['destroy']);
+    Route::post('domestic-transactions', [DomesticTransactionController::class, 'store'])
+        ->middleware('role:ADMIN_EHS,OPERATOR_TPS');
+    Route::match(['put', 'patch'], 'domestic-transactions/{domestic_transaction}', [DomesticTransactionController::class, 'update'])
+        ->middleware('role:ADMIN_EHS,OPERATOR_TPS');
+    Route::apiResource('domestic-transactions', DomesticTransactionController::class)->except(['destroy', 'store', 'update']);
 
     // Notifications
     Route::prefix('notifications')->group(function () {

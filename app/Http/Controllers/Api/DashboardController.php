@@ -115,6 +115,8 @@ class DashboardController
         $userName = auth()->user()?->name ?? $request->input('acknowledged_by', 'Petugas EHS');
         $alert->acknowledge($userName);
 
+        DashboardService::clearCache();
+
         return response()->json([
             'status' => 'success',
             'message' => 'Peringatan masa simpan telah ditandai sebagai ditindaklanjuti.',

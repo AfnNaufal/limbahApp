@@ -83,21 +83,15 @@ export default function SettingsPage() {
         const loadedNotif = data.notifEnabled !== undefined ? data.notifEnabled === 'true' : true
         const loadedB3 = data.notifB3 !== undefined ? data.notifB3 === 'true' : true
         const loadedDom = data.notifDomestic !== undefined ? data.notifDomestic === 'true' : true
-        const loadedTheme = (data.theme as ThemeId) || theme
-        const loadedMode = (data.mode as ModeId) || mode
-        const loadedLang = (data.lang as LangId) || lang
 
         setNotifEnabled(loadedNotif)
         setNotifB3(loadedB3)
         setNotifDomestic(loadedDom)
-        if (data.theme && data.theme !== theme) setTheme(data.theme as any)
-        if (data.mode && data.mode !== mode) setMode(data.mode as any)
-        if (data.lang && data.lang !== lang) setLang(data.lang as any)
 
         setSavedRef({
-          theme: loadedTheme,
-          mode: loadedMode,
-          lang: loadedLang,
+          theme: theme,
+          mode: mode,
+          lang: lang,
           notifEnabled: loadedNotif,
           notifB3: loadedB3,
           notifDomestic: loadedDom,
@@ -124,9 +118,6 @@ export default function SettingsPage() {
         notifEnabled: String(notifEnabled),
         notifB3: String(notifB3),
         notifDomestic: String(notifDomestic),
-        theme: String(theme),
-        mode: String(mode),
-        lang: String(lang),
       })
     } catch {
       // Non-blocking fallback

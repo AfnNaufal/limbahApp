@@ -27,9 +27,6 @@ class SystemSettingController
     public function update(Request $request): JsonResponse
     {
         $allowedKeys = [
-            'theme',
-            'mode',
-            'lang',
             'company_name',
             'notification_sound',
             'email_alerts',
