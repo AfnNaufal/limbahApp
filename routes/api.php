@@ -85,6 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/expired-warnings', [DashboardController::class, 'expiredWarnings']);
         Route::get('/monthly-trends', [DashboardController::class, 'monthlyTrends']);
         Route::get('/trends', [DashboardController::class, 'monthlyTrends']); // Alias for compatibility
+        Route::get('/yearly-trends', [DashboardController::class, 'yearlyTrends']);
         Route::get('/category-breakdown', [DashboardController::class, 'categoryBreakdown']);
     });
 });

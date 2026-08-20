@@ -204,6 +204,28 @@ export async function getDashboardTrends(months = 12, year?: string | number): P
   return res?.trends ?? [];
 }
 
+export type DashboardYearlyTrendItem = {
+  name: string;
+  year: string;
+  b3in: number;
+  b3out: number;
+  b3_in_weight_kg: number;
+  b3_out_weight_kg: number;
+  b3_weight_kg: number;
+  morning: number;
+  afternoon: number;
+  organic: number;
+  inorganic: number;
+  domestic_organic_kg: number;
+  domestic_inorganic_kg: number;
+  domestic_weight_kg: number;
+};
+
+export async function getDashboardYearlyTrends(years = 5): Promise<DashboardYearlyTrendItem[]> {
+  const res = await getApi<{ trends: DashboardYearlyTrendItem[] }>(`/api/dashboard/yearly-trends?years=${years}`);
+  return res?.trends ?? [];
+}
+
 export async function getDashboardCategoryBreakdown(): Promise<CategoryBreakdownItem[]> {
   const res = await getApi<{ categories: CategoryBreakdownItem[] }>('/api/dashboard/category-breakdown');
   return res?.categories ?? [];

@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { useApp, getPeriodDateRange } from '../context'
 import { useToast } from '../context/ToastContext'
-import { getDomesticTransactions, updateDomesticTransaction, deleteDomesticTransaction } from '../api'
+import { getDomesticTransactions, updateDomesticTransaction, deleteDomesticTransaction, getDashboardYearlyTrends, type DashboardYearlyTrendItem } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import { useDebounce } from '../hooks/useDebounce'
 import EmptyState from './EmptyState'
@@ -18,13 +18,30 @@ import DomesticDeleteModal from './domestic/DomesticDeleteModal'
 
 type TrendPeriod = 'weekly' | 'monthly' | 'yearly'
 
-const YEARLY_DATA = [
-  { name: '2020', morning: 2834.5, afternoon: 1823.2 },
-  { name: '2021', morning: 3156.8, afternoon: 2034.6 },
-  { name: '2022', morning: 3423.4, afternoon: 2212.8 },
-  { name: '2023', morning: 3423.9, afternoon: 2298.4 },
-  { name: '2024', morning: 3863.2, afternoon: 2431.4 },
-]
+function mapDomesticItem(item: any) {
+  return {
+    id: `DOM-${item.id}`,
+    rawId: item.id,
+    date: item.date,
+    movementType: item.movement_type || 'IN',
+    session: item.session === 'MORNING' ? 'morning' : 'afternoon',
+    organicKg: Number(item.organic_weight_kg ?? 0),
+    inorganicKg: Number(item.inorganic_weight_kg ?? 0),
+    totalKg: Number(item.total_weight_kg ?? 0),
+    domestic_residue_kg: item.domestic_residue_kg,
+    status: (item.status || 'SUBMITTED').toLowerCase(),
+    picName: item.pic_name || 'Petugas',
+    pic_name: item.pic_name || 'Petugas',
+    pic_phone: item.pic_phone,
+    notes: item.notes || '',
+    created_by: item.created_by,
+    updated_by: item.updated_by,
+    creator: item.creator || null,
+    updater: item.updater || null,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  }
+}
 
 export default function DomesticPage() {
   const { tokens, t, theme, search, setSearch, year, periodFilter } = useApp()
@@ -34,6 +51,11 @@ export default function DomesticPage() {
   const [filterSession, setFilterSession] = useState<'all' | 'morning' | 'afternoon'>('all')
   const [filterStatus, setFilterStatus] = useState<import('./domestic/DomesticFilterBar').DomesticFilterStatus>('all')
   const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalRecords, setTotalRecords] = useState(0)
+  const [tableList, setTableList] = useState<any[]>([])
+  const [tableLoading, setTableLoading] = useState(false)
+  const [yearlyData, setYearlyData] = useState<DashboardYearlyTrendItem[]>([])
   const [apiData, setApiData] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [editingTx, setEditingTx] = useState<any | null>(null)
@@ -53,6 +75,15 @@ export default function DomesticPage() {
   const { toast } = useToast()
   const debouncedSearch = useDebounce(search, 350)
 
+  // Fetch yearly trends when yearly trend period is selected
+  useEffect(() => {
+    if (trendPeriod === 'yearly') {
+      getDashboardYearlyTrends(5)
+        .then((data) => setYearlyData(data))
+        .catch((err) => console.error('Failed to load yearly trends:', err))
+    }
+  }, [trendPeriod])
+
   const recentActivities = useMemo(() => {
     if (apiData && apiData.length > 0) {
       return apiData.slice(0, 5).map((tx) => {
@@ -66,58 +97,68 @@ export default function DomesticPage() {
     return []
   }, [apiData])
 
-  const fetchData = () => {
+  // Summary data fetch for charts and overview
+  const fetchSummaryData = () => {
     setLoading(true)
     setApiError(false)
     const periodRange = getPeriodDateRange(year, periodFilter)
     getDomesticTransactions({
       page: 1,
-      per_page: 1000,
-      movement_type: filterMovement === 'all' ? undefined : filterMovement,
-      session: filterSession === 'all' ? undefined : filterSession.toUpperCase() as 'MORNING' | 'AFTERNOON',
-      status: filterStatus === 'all' ? undefined : filterStatus.toUpperCase(),
+      per_page: 100,
       search: debouncedSearch || undefined,
       from: periodRange.from,
       to: periodRange.to,
     })
       .then((res) => {
         if (res?.data) {
-          const mapped = res.data.map((item: any) => ({
-            id: `DOM-${item.id}`,
-            rawId: item.id,
-            date: item.date,
-            movementType: item.movement_type || 'IN',
-            session: item.session === 'MORNING' ? 'morning' : 'afternoon',
-            organicKg: Number(item.organic_weight_kg ?? 0),
-            inorganicKg: Number(item.inorganic_weight_kg ?? 0),
-            totalKg: Number(item.total_weight_kg ?? 0),
-            domestic_residue_kg: item.domestic_residue_kg,
-            status: (item.status || 'SUBMITTED').toLowerCase(),
-            picName: item.pic_name || 'Petugas',
-            pic_name: item.pic_name || 'Petugas',
-            pic_phone: item.pic_phone,
-            notes: item.notes || '',
-            created_by: item.created_by,
-            updated_by: item.updated_by,
-            creator: item.creator || null,
-            updater: item.updater || null,
-            created_at: item.created_at,
-            updated_at: item.updated_at,
-          }))
+          const mapped = res.data.map(mapDomesticItem)
           setApiData(mapped)
         }
         setLoading(false)
       })
       .catch((err) => {
-        console.error('Failed to load Domestic transactions:', err)
+        console.error('Failed to load Domestic summary transactions:', err)
         setApiError(true)
         setLoading(false)
       })
   }
 
+  // Server-side paginated data fetch for raw transaction table
+  const fetchTableData = () => {
+    setTableLoading(true)
+    const periodRange = getPeriodDateRange(year, periodFilter)
+    getDomesticTransactions({
+      page,
+      per_page: PAGE_SIZE,
+      movement_type: filterMovement === 'all' ? undefined : filterMovement,
+      session: filterSession === 'all' ? undefined : (filterSession.toUpperCase() as 'MORNING' | 'AFTERNOON'),
+      status: filterStatus === 'all' ? undefined : (filterStatus.toUpperCase() as any),
+      search: debouncedSearch || undefined,
+      from: periodRange.from,
+      to: periodRange.to,
+    })
+      .then((res) => {
+        if (res?.data) {
+          const mapped = res.data.map(mapDomesticItem)
+          setTableList(mapped)
+          setTotalPages(res.last_page || 1)
+          setTotalRecords(res.total || 0)
+        }
+        setTableLoading(false)
+      })
+      .catch((err) => {
+        console.error('Failed to load paginated Domestic transactions:', err)
+        setTableLoading(false)
+      })
+  }
+
   useEffect(() => {
-    fetchData()
-  }, [filterMovement, filterSession, filterStatus, debouncedSearch, year, periodFilter])
+    fetchSummaryData()
+  }, [debouncedSearch, year, periodFilter])
+
+  useEffect(() => {
+    fetchTableData()
+  }, [page, filterMovement, filterSession, filterStatus, debouncedSearch, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)
@@ -140,7 +181,8 @@ export default function DomesticPage() {
       })
       setEditingTx(null)
       toast.success('Data transaksi domestik berhasil diperbarui')
-      fetchData()
+      fetchSummaryData()
+      fetchTableData()
     } catch (err: any) {
       toast.error(err.message || 'Gagal mengubah transaksi')
     } finally {
@@ -155,7 +197,8 @@ export default function DomesticPage() {
       await deleteDomesticTransaction(deletingTx.rawId)
       setDeletingTx(null)
       toast.success('Data transaksi domestik berhasil dihapus')
-      fetchData()
+      fetchSummaryData()
+      fetchTableData()
     } catch (err: any) {
       toast.error(err.message || 'Gagal menghapus transaksi')
     } finally {
@@ -182,19 +225,15 @@ export default function DomesticPage() {
     })
   }, [transactionsList, search, year, periodFilter])
 
-  const filtered = useMemo(() => {
-    return periodTransactions.filter((tx) => {
-      if (filterMovement !== 'all' && tx.movementType !== filterMovement) return false
-      if (filterSession !== 'all' && tx.session !== filterSession) return false
-      if (filterStatus !== 'all' && tx.status !== filterStatus) return false
-      return true
-    })
-  }, [periodTransactions, filterMovement, filterSession, filterStatus])
-
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-
   const trendData = useMemo(() => {
+    if (trendPeriod === 'yearly' && yearlyData.length > 0) {
+      return yearlyData.map((y) => ({
+        name: y.year || y.name,
+        morning: Number(Number(y.morning ?? 0).toFixed(1)),
+        afternoon: Number(Number(y.afternoon ?? 0).toFixed(1)),
+      }))
+    }
+
     const monthMap: Record<string, { morning: number; afternoon: number }> = {}
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
     monthNames.forEach((m) => { monthMap[m] = { morning: 0, afternoon: 0 } })
@@ -216,7 +255,7 @@ export default function DomesticPage() {
       morning: Number(monthMap[m].morning.toFixed(1)),
       afternoon: Number(monthMap[m].afternoon.toFixed(1)),
     }))
-  }, [periodTransactions])
+  }, [periodTransactions, trendPeriod, yearlyData])
 
   const ratioPieData = useMemo(() => {
     let organic = 0
@@ -458,7 +497,7 @@ export default function DomesticPage() {
                 transition: 'all 0.15s ease',
               }}
             >
-              <span>📄</span> Riwayat Semua Log ({filtered.length})
+              <span>📄</span> Riwayat Semua Log ({totalRecords})
             </button>
           </div>
 
@@ -477,13 +516,17 @@ export default function DomesticPage() {
         </div>
 
         {/* Tab Content */}
-        {loading && !apiData ? (
+        {activeTab === 'summary' ? (
+          loading && !apiData ? (
+            <SkeletonLoader rows={6} />
+          ) : (
+            <DomesticWasteSummary
+              transactions={periodTransactions}
+            />
+          )
+        ) : tableLoading ? (
           <SkeletonLoader rows={6} />
-        ) : activeTab === 'summary' ? (
-          <DomesticWasteSummary
-            transactions={periodTransactions}
-          />
-        ) : filtered.length === 0 ? (
+        ) : tableList.length === 0 ? (
           <EmptyState
             title="Tidak Ada Transaksi Domestik"
             message={search ? `Tidak ada data transaksi Domestik yang cocok dengan kata kunci "${search}".` : 'Belum ada transaksi Limbah Domestik yang tersimpan untuk filter saat ini.'}
@@ -491,8 +534,8 @@ export default function DomesticPage() {
           />
         ) : (
           <DomesticTable
-            paginated={paginated}
-            filteredCount={filtered.length}
+            paginated={tableList}
+            filteredCount={totalRecords}
             page={page}
             totalPages={totalPages}
             setPage={setPage}

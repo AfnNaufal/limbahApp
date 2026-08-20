@@ -21,23 +21,34 @@ class DomesticTransactionController
      */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $perPage = $request->input('per_page', 25);
-        $movementType = $request->input('movement_type'); // IN or OUT
-        $session = $request->input('session'); // MORNING or AFTERNOON
-        $status = $request->input('status');
-        $search = $request->input('search');
-        $dateFrom = $request->input('date_from');
-        $dateTo = $request->input('date_to');
+        $validated = $request->validate([
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'page' => 'nullable|integer|min:1',
+            'movement_type' => 'nullable|in:IN,OUT',
+            'session' => 'nullable|in:MORNING,AFTERNOON',
+            'status' => 'nullable|string|max:50',
+            'search' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
+
+        $perPage = $validated['per_page'] ?? 25;
+        $movementType = $validated['movement_type'] ?? null;
+        $session = $validated['session'] ?? null;
+        $status = $validated['status'] ?? null;
+        $search = $validated['search'] ?? null;
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
 
         $query = DomesticTransaction::with(['creator', 'updater']);
 
         // Filter by movement type
-        if ($movementType && in_array($movementType, ['IN', 'OUT'])) {
+        if ($movementType) {
             $query->where('movement_type', $movementType);
         }
 
         // Filter by session
-        if ($session && in_array($session, ['MORNING', 'AFTERNOON'])) {
+        if ($session) {
             $query->where('session', $session);
         }
 
@@ -58,15 +69,11 @@ class DomesticTransactionController
 
         // Filter by date range
         if ($dateFrom) {
-            try {
-                $query->where('date', '>=', Carbon::parse($dateFrom)->startOfDay());
-            } catch (\Throwable $e) {}
+            $query->where('date', '>=', Carbon::parse($dateFrom)->startOfDay());
         }
 
         if ($dateTo) {
-            try {
-                $query->where('date', '<=', Carbon::parse($dateTo)->endOfDay());
-            } catch (\Throwable $e) {}
+            $query->where('date', '<=', Carbon::parse($dateTo)->endOfDay());
         }
 
         $transactions = $query->orderBy('date', 'desc')->paginate($perPage);

@@ -286,6 +286,80 @@ class DashboardService
     }
 
     /**
+     * Get yearly trends for B3 & Domestic waste (Cached for 10 mins)
+     */
+    public function getYearlyTrends(int $years = 5): array
+    {
+        $cacheKey = 'dashboard_trends_yearly_' . $years;
+
+        return Cache::remember($cacheKey, 600, function () use ($years) {
+            $currentYear = (int) date('Y');
+            $startYear = $currentYear - ($years - 1);
+            $startDate = Carbon::create($startYear, 1, 1)->startOfDay();
+            $endDate = Carbon::create($currentYear, 12, 31)->endOfDay();
+
+            // Query B3 transactions grouped by year
+            $b3Stats = B3Transaction::selectRaw("
+                    DATE_FORMAT(date, '%Y') as yr,
+                    SUM(CASE WHEN transaction_type = 'IN' THEN weight_kg ELSE 0 END) as in_weight,
+                    SUM(CASE WHEN transaction_type = 'OUT' THEN weight_kg ELSE 0 END) as out_weight
+                ")
+                ->whereBetween('date', [$startDate, $endDate])
+                ->groupBy('yr')
+                ->get()
+                ->keyBy('yr');
+
+            // Query Domestic transactions grouped by year
+            $domStats = DomesticTransaction::selectRaw("
+                    DATE_FORMAT(date, '%Y') as yr,
+                    SUM(organic_weight_kg) as organic_weight,
+                    SUM(inorganic_weight_kg) as inorganic_weight,
+                    SUM(total_weight_kg) as total_weight,
+                    SUM(CASE WHEN session = 'MORNING' THEN total_weight_kg ELSE 0 END) as morning_weight,
+                    SUM(CASE WHEN session = 'AFTERNOON' THEN total_weight_kg ELSE 0 END) as afternoon_weight
+                ")
+                ->whereBetween('date', [$startDate, $endDate])
+                ->groupBy('yr')
+                ->get()
+                ->keyBy('yr');
+
+            $trends = [];
+            for ($y = $startYear; $y <= $currentYear; $y++) {
+                $yrStr = (string) $y;
+                $b3Row = $b3Stats->get($yrStr);
+                $domRow = $domStats->get($yrStr);
+
+                $b3InWeight = (float) ($b3Row?->in_weight ?? 0);
+                $b3OutWeight = (float) ($b3Row?->out_weight ?? 0);
+                $domOrganic = (float) ($domRow?->organic_weight ?? 0);
+                $domInorganic = (float) ($domRow?->inorganic_weight ?? 0);
+                $domMorning = (float) ($domRow?->morning_weight ?? 0);
+                $domAfternoon = (float) ($domRow?->afternoon_weight ?? 0);
+                $domTotal = (float) ($domRow?->total_weight ?? 0);
+
+                $trends[] = [
+                    'name' => $yrStr,
+                    'year' => $yrStr,
+                    'b3in' => $b3InWeight,
+                    'b3out' => $b3OutWeight,
+                    'b3_in_weight_kg' => $b3InWeight,
+                    'b3_out_weight_kg' => $b3OutWeight,
+                    'b3_weight_kg' => $b3InWeight + $b3OutWeight,
+                    'morning' => $domMorning > 0 ? $domMorning : round($domTotal / 2, 2),
+                    'afternoon' => $domAfternoon > 0 ? $domAfternoon : round($domTotal / 2, 2),
+                    'organic' => $domOrganic,
+                    'inorganic' => $domInorganic,
+                    'domestic_organic_kg' => $domOrganic,
+                    'domestic_inorganic_kg' => $domInorganic,
+                    'domestic_weight_kg' => $domTotal > 0 ? $domTotal : ($domOrganic + $domInorganic),
+                ];
+            }
+
+            return $trends;
+        });
+    }
+
+    /**
      * Clear all cached dashboard KPIs, trends, and category aggregations.
      */
     public static function clearCache(): void
@@ -301,6 +375,8 @@ class DashboardService
         }
         Cache::forget('dashboard_trends_all_12');
         Cache::forget('dashboard_trends_all_6');
+        Cache::forget('dashboard_trends_yearly_5');
+        Cache::forget('dashboard_trends_yearly_10');
     }
 
     /**

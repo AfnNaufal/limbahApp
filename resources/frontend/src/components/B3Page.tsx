@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { useApp, getPeriodDateRange } from '../context'
 import { useToast } from '../context/ToastContext'
-import { getB3Transactions, updateB3Transaction, deleteB3Transaction } from '../api'
+import { getB3Transactions, updateB3Transaction, deleteB3Transaction, getDashboardYearlyTrends, type DashboardYearlyTrendItem } from '../api'
 import { useIsMobile, useIsTablet } from '../hooks/useMediaQuery'
 import { useDebounce } from '../hooks/useDebounce'
 import EmptyState from './EmptyState'
@@ -19,13 +19,40 @@ import B3DeleteModal from './b3/B3DeleteModal'
 
 type TrendPeriod = 'weekly' | 'monthly' | 'yearly'
 
-const YEARLY_DATA = [
-  { name: '2020', b3in: 8234.5, b3out: 7123.2 },
-  { name: '2021', b3in: 9456.8, b3out: 8234.6 },
-  { name: '2022', b3in: 10123.4, b3out: 9012.8 },
-  { name: '2023', b3in: 10178.3, b3out: 9079.4 },
-  { name: '2024', b3in: 11019.7, b3out: 9291.7 },
-]
+function mapB3Item(item: any) {
+  const rawUrl = item.scale_photo_url || null
+  const cleanPhotoUrl = rawUrl && rawUrl.includes('/storage/')
+    ? '/storage/' + rawUrl.split('/storage/')[1]
+    : rawUrl
+
+  return {
+    id: `B3-${item.id}`,
+    rawId: item.id,
+    date: item.date,
+    category: item.transaction_type === 'IN' ? 'b3in' : 'b3out',
+    transaction_type: item.transaction_type,
+    type: item.waste_name,
+    waste_name: item.waste_name,
+    wasteCode: item.waste_code,
+    waste_code: item.waste_code,
+    weightKg: Number(item.weight_kg ?? 0),
+    amountKg: Number(item.weight_kg ?? 0),
+    status: (item.status || 'pending').toLowerCase(),
+    source: item.source || '-',
+    destination: item.destination || '-',
+    transporter: item.transporter || '-',
+    manifest: item.manifest_number || '-',
+    scalePhotoUrl: cleanPhotoUrl,
+    notes: item.notes || '',
+    storage_deadline_at: item.storage_deadline_at,
+    created_by: item.created_by,
+    updated_by: item.updated_by,
+    creator: item.creator || null,
+    updater: item.updater || null,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  }
+}
 
 export default function B3Page() {
   const { tokens, t, theme, search, setSearch, year, periodFilter } = useApp()
@@ -36,6 +63,11 @@ export default function B3Page() {
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
   const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalRecords, setTotalRecords] = useState(0)
+  const [tableList, setTableList] = useState<any[]>([])
+  const [tableLoading, setTableLoading] = useState(false)
+  const [yearlyData, setYearlyData] = useState<DashboardYearlyTrendItem[]>([])
   const [apiData, setApiData] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
@@ -57,6 +89,15 @@ export default function B3Page() {
   const PAGE_SIZE = 10
   const { toast } = useToast()
   const debouncedSearch = useDebounce(search, 350)
+
+  // Fetch yearly trends when yearly trend period is selected
+  useEffect(() => {
+    if (trendPeriod === 'yearly') {
+      getDashboardYearlyTrends(5)
+        .then((data) => setYearlyData(data))
+        .catch((err) => console.error('Failed to load yearly trends:', err))
+    }
+  }, [trendPeriod])
 
   const recentActivities = useMemo(() => {
     if (apiData && apiData.length > 0) {
@@ -94,53 +135,21 @@ export default function B3Page() {
       .slice(0, 6)
   }, [apiData])
 
-  const fetchData = () => {
+  // Summary data fetch for charts and overview
+  const fetchSummaryData = () => {
     setLoading(true)
     setApiError(false)
     const periodRange = getPeriodDateRange(year, periodFilter)
     getB3Transactions({
       page: 1,
-      per_page: 1000,
+      per_page: 100,
       search: debouncedSearch || undefined,
       from: filterFrom || periodRange.from,
       to: filterTo || periodRange.to,
     })
       .then((res) => {
         if (res?.data) {
-          const mapped = res.data.map((item: any) => {
-            const rawUrl = item.scale_photo_url || null
-            const cleanPhotoUrl = rawUrl && rawUrl.includes('/storage/')
-              ? '/storage/' + rawUrl.split('/storage/')[1]
-              : rawUrl
-
-            return {
-              id: `B3-${item.id}`,
-              rawId: item.id,
-              date: item.date,
-              category: item.transaction_type === 'IN' ? 'b3in' : 'b3out',
-              transaction_type: item.transaction_type,
-              type: item.waste_name,
-              waste_name: item.waste_name,
-              wasteCode: item.waste_code,
-              waste_code: item.waste_code,
-              weightKg: Number(item.weight_kg ?? 0),
-              amountKg: Number(item.weight_kg ?? 0),
-              status: (item.status || 'pending').toLowerCase(),
-              source: item.source || '-',
-              destination: item.destination || '-',
-              transporter: item.transporter || '-',
-              manifest: item.manifest_number || '-',
-              scalePhotoUrl: cleanPhotoUrl,
-              notes: item.notes || '',
-              storage_deadline_at: item.storage_deadline_at,
-              created_by: item.created_by,
-              updated_by: item.updated_by,
-              creator: item.creator || null,
-              updater: item.updater || null,
-              created_at: item.created_at,
-              updated_at: item.updated_at,
-            }
-          })
+          const mapped = res.data.map(mapB3Item)
           setApiData(mapped)
         }
         setLoading(false)
@@ -152,9 +161,41 @@ export default function B3Page() {
       })
   }
 
+  // Server-side paginated data fetch for raw transaction table
+  const fetchTableData = () => {
+    setTableLoading(true)
+    const periodRange = getPeriodDateRange(year, periodFilter)
+    getB3Transactions({
+      page,
+      per_page: PAGE_SIZE,
+      type: filterCat === 'all' ? undefined : (filterCat === 'b3in' ? 'IN' : 'OUT'),
+      status: filterStatus === 'all' ? undefined : (filterStatus.toUpperCase() as any),
+      search: debouncedSearch || undefined,
+      from: filterFrom || periodRange.from,
+      to: filterTo || periodRange.to,
+    })
+      .then((res) => {
+        if (res?.data) {
+          const mapped = res.data.map(mapB3Item)
+          setTableList(mapped)
+          setTotalPages(res.last_page || 1)
+          setTotalRecords(res.total || 0)
+        }
+        setTableLoading(false)
+      })
+      .catch((err) => {
+        console.error('Failed to load paginated B3 transactions:', err)
+        setTableLoading(false)
+      })
+  }
+
   useEffect(() => {
-    fetchData()
+    fetchSummaryData()
   }, [filterFrom, filterTo, debouncedSearch, year, periodFilter])
+
+  useEffect(() => {
+    fetchTableData()
+  }, [page, filterCat, filterStatus, filterFrom, filterTo, debouncedSearch, year, periodFilter])
 
   const handleOpenEdit = (tx: any) => {
     setEditingTx(tx)
@@ -182,7 +223,8 @@ export default function B3Page() {
       })
       setEditingTx(null)
       toast.success('Data transaksi B3 berhasil diperbarui')
-      fetchData()
+      fetchSummaryData()
+      fetchTableData()
     } catch (err: any) {
       toast.error(err.message || 'Gagal mengubah transaksi')
     } finally {
@@ -197,7 +239,8 @@ export default function B3Page() {
       await deleteB3Transaction(deletingTx.rawId)
       setDeletingTx(null)
       toast.success('Data transaksi B3 berhasil dihapus')
-      fetchData()
+      fetchSummaryData()
+      fetchTableData()
     } catch (err: any) {
       toast.error(err.message || 'Gagal menghapus transaksi')
     } finally {
@@ -229,19 +272,15 @@ export default function B3Page() {
     })
   }, [transactionsList, filterFrom, filterTo, search, year, periodFilter])
 
-  // Filtered by specific category/status (for the raw logs table tab)
-  const filtered = useMemo(() => {
-    return periodTransactions.filter((tx) => {
-      if (filterCat !== 'all' && tx.category !== filterCat) return false
-      if (filterStatus !== 'all' && tx.status !== filterStatus) return false
-      return true
-    })
-  }, [periodTransactions, filterCat, filterStatus])
-
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-
   const trendData = useMemo(() => {
+    if (trendPeriod === 'yearly' && yearlyData.length > 0) {
+      return yearlyData.map((y) => ({
+        name: y.year || y.name,
+        b3in: Number(Number(y.b3in ?? y.b3_in_weight_kg ?? 0).toFixed(1)),
+        b3out: Number(Number(y.b3out ?? y.b3_out_weight_kg ?? 0).toFixed(1)),
+      }))
+    }
+
     const monthMap: Record<string, { b3in: number; b3out: number }> = {}
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
     monthNames.forEach((m) => { monthMap[m] = { b3in: 0, b3out: 0 } })
@@ -263,7 +302,7 @@ export default function B3Page() {
       b3in: Number(monthMap[m].b3in.toFixed(1)),
       b3out: Number(monthMap[m].b3out.toFixed(1)),
     }))
-  }, [periodTransactions])
+  }, [periodTransactions, trendPeriod, yearlyData])
 
   const dynamicPieIn = useMemo(() => {
     const catMap: Record<string, number> = {}
@@ -494,7 +533,7 @@ export default function B3Page() {
                 transition: 'all 0.15s ease',
               }}
             >
-              <span>📄</span> Riwayat Semua Log ({filtered.length})
+              <span>📄</span> Riwayat Semua Log ({totalRecords})
             </button>
           </div>
 
@@ -515,14 +554,18 @@ export default function B3Page() {
         </div>
 
         {/* Tab Content */}
-        {loading && !apiData ? (
+        {activeTab === 'summary' ? (
+          loading && !apiData ? (
+            <SkeletonLoader rows={6} />
+          ) : (
+            <B3WasteSummary
+              transactions={periodTransactions}
+              searchQuery={search}
+            />
+          )
+        ) : tableLoading ? (
           <SkeletonLoader rows={6} />
-        ) : activeTab === 'summary' ? (
-          <B3WasteSummary
-            transactions={periodTransactions}
-            searchQuery={search}
-          />
-        ) : filtered.length === 0 ? (
+        ) : tableList.length === 0 ? (
           <EmptyState
             title="Tidak Ada Transaksi B3"
             message={search ? `Tidak ada data transaksi B3 yang cocok dengan kata kunci "${search}".` : 'Belum ada transaksi Limbah B3 yang tersimpan untuk filter saat ini.'}
@@ -530,8 +573,8 @@ export default function B3Page() {
           />
         ) : (
           <B3Table
-            paginated={paginated}
-            filteredCount={filtered.length}
+            paginated={tableList}
+            filteredCount={totalRecords}
             page={page}
             totalPages={totalPages}
             setPage={setPage}

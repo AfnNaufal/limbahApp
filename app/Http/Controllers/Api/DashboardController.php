@@ -96,6 +96,20 @@ class DashboardController
     }
 
     /**
+     * Get yearly trends (aggregated across years)
+     */
+    public function yearlyTrends(Request $request): JsonResponse
+    {
+        $years = (int) $request->input('years', 5);
+        $trends = $this->service->getYearlyTrends($years);
+
+        return response()->json([
+            'years' => $years,
+            'trends' => $trends,
+        ]);
+    }
+
+    /**
      * Get category breakdown
      */
     public function categoryBreakdown(): JsonResponse

@@ -21,17 +21,27 @@ class B3TransactionController
      */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $perPage = $request->input('per_page', 25);
-        $type = $request->input('type'); // IN or OUT
-        $status = $request->input('status');
-        $search = $request->input('search');
-        $dateFrom = $request->input('date_from');
-        $dateTo = $request->input('date_to');
+        $validated = $request->validate([
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'page' => 'nullable|integer|min:1',
+            'type' => 'nullable|in:IN,OUT',
+            'status' => 'nullable|string|max:50',
+            'search' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
+
+        $perPage = $validated['per_page'] ?? 25;
+        $type = $validated['type'] ?? null;
+        $status = $validated['status'] ?? null;
+        $search = $validated['search'] ?? null;
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
 
         $query = B3Transaction::with(['wasteCategory', 'creator', 'updater']);
 
         // Filter by transaction type
-        if ($type && in_array($type, ['IN', 'OUT'])) {
+        if ($type) {
             $query->where('transaction_type', $type);
         }
 
@@ -55,15 +65,11 @@ class B3TransactionController
 
         // Filter by date range
         if ($dateFrom) {
-            try {
-                $query->where('date', '>=', Carbon::parse($dateFrom)->startOfDay());
-            } catch (\Throwable $e) {}
+            $query->where('date', '>=', Carbon::parse($dateFrom)->startOfDay());
         }
 
         if ($dateTo) {
-            try {
-                $query->where('date', '<=', Carbon::parse($dateTo)->endOfDay());
-            } catch (\Throwable $e) {}
+            $query->where('date', '<=', Carbon::parse($dateTo)->endOfDay());
         }
 
         $transactions = $query->orderBy('date', 'desc')->paginate($perPage);

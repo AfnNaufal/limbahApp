@@ -191,7 +191,7 @@ class ApiPhase1Test extends TestCase
     public function test_create_domestic_transaction()
     {
         $payload = [
-            'date' => now()->subDays(rand(10, 500))->toDateString(),
+            'date' => now()->subDays(200)->toDateString(),
             'movement_type' => 'IN',
             'session' => 'MORNING',
             'domestic_residue_kg' => 125.0,
@@ -325,5 +325,138 @@ class ApiPhase1Test extends TestCase
         $updatedInWeight = $secondResponse->json('data.b3_in_weight_kg');
 
         $this->assertEquals((float) $initialInWeight + 250.0, (float) $updatedInWeight);
+    }
+
+    /**
+     * Test dashboard yearly trends endpoint
+     */
+    public function test_get_dashboard_yearly_trends()
+    {
+        $response = $this->getJson('/api/dashboard/yearly-trends?years=5');
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'years',
+            'trends' => [
+                '*' => [
+                    'name',
+                    'year',
+                    'b3in',
+                    'b3out',
+                    'b3_in_weight_kg',
+                    'b3_out_weight_kg',
+                    'b3_weight_kg',
+                    'morning',
+                    'afternoon',
+                    'organic',
+                    'inorganic',
+                    'domestic_organic_kg',
+                    'domestic_inorganic_kg',
+                    'domestic_weight_kg',
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Test B3 transaction manifest number uniqueness allows reuse when soft-deleted
+     */
+    public function test_b3_transaction_manifest_unique_allows_soft_deleted_reuse()
+    {
+        $category = WasteCategory::first();
+
+        // 1. Create first OUT transaction with manifest MAN-TEST-123
+        $first = $this->postJson('/api/b3-transactions', [
+            'transaction_type' => 'OUT',
+            'waste_category_id' => $category->id,
+            'waste_code' => $category->code,
+            'waste_name' => $category->name,
+            'date' => now()->toDateString(),
+            'destination' => 'PT Pengolah B3',
+            'transporter' => 'PT Transporter B3',
+            'manifest_number' => 'MAN-TEST-123',
+            'weight_kg' => 100.0,
+            'remaining_weight_kg' => 0.0,
+            'status' => 'COMPLETED',
+        ]);
+        $first->assertStatus(201);
+        $txId = $first->json('data.id');
+
+        // 2. Attempt duplicate should fail with 422
+        $duplicate = $this->postJson('/api/b3-transactions', [
+            'transaction_type' => 'OUT',
+            'waste_category_id' => $category->id,
+            'waste_code' => $category->code,
+            'waste_name' => $category->name,
+            'date' => now()->toDateString(),
+            'destination' => 'PT Pengolah B3',
+            'transporter' => 'PT Transporter B3',
+            'manifest_number' => 'MAN-TEST-123',
+            'weight_kg' => 50.0,
+            'remaining_weight_kg' => 0.0,
+            'status' => 'COMPLETED',
+        ]);
+        $duplicate->assertStatus(422);
+
+        // 3. Soft-delete the first transaction
+        $this->deleteJson("/api/b3-transactions/{$txId}")->assertStatus(204);
+
+        // 4. Now the same manifest number should be allowed to be reused
+        $reused = $this->postJson('/api/b3-transactions', [
+            'transaction_type' => 'OUT',
+            'waste_category_id' => $category->id,
+            'waste_code' => $category->code,
+            'waste_name' => $category->name,
+            'date' => now()->toDateString(),
+            'destination' => 'PT Pengolah B3',
+            'transporter' => 'PT Transporter B3',
+            'manifest_number' => 'MAN-TEST-123',
+            'weight_kg' => 50.0,
+            'remaining_weight_kg' => 0.0,
+            'status' => 'COMPLETED',
+        ]);
+        $reused->assertStatus(201);
+    }
+
+    /**
+     * Test B3 transaction server-side pagination
+     */
+    public function test_b3_transactions_server_side_pagination()
+    {
+        $response = $this->getJson('/api/b3-transactions?page=1&per_page=5');
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'data',
+            'links',
+            'meta' => [
+                'current_page',
+                'last_page',
+                'per_page',
+                'total',
+            ]
+        ]);
+        $this->assertLessThanOrEqual(5, count($response->json('data')));
+    }
+
+    /**
+     * Test Domestic transaction server-side pagination
+     */
+    public function test_domestic_transactions_server_side_pagination()
+    {
+        $response = $this->getJson('/api/domestic-transactions?page=1&per_page=5');
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'data',
+            'links',
+            'meta' => [
+                'current_page',
+                'last_page',
+                'per_page',
+                'total',
+            ]
+        ]);
+        $this->assertLessThanOrEqual(5, count($response->json('data')));
     }
 }
