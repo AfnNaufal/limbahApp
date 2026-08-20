@@ -141,8 +141,10 @@ export default function DomesticPage() {
         if (res?.data) {
           const mapped = res.data.map(mapDomesticItem)
           setTableList(mapped)
-          setTotalPages(res.last_page || 1)
-          setTotalRecords(res.total || 0)
+          const total = res.meta?.total ?? res.total ?? mapped.length
+          const lastPage = res.meta?.last_page ?? res.last_page ?? Math.max(1, Math.ceil(total / PAGE_SIZE))
+          setTotalPages(lastPage)
+          setTotalRecords(total)
         }
         setTableLoading(false)
       })

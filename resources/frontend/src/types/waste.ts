@@ -123,6 +123,20 @@ export interface StorageAlertItem extends B3TransactionData {
  */
 export interface PaginatedResponse<T> {
   data: T[]
+  meta?: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+    from?: number | null
+    to?: number | null
+  }
+  links?: {
+    first?: string
+    last?: string
+    prev?: string | null
+    next?: string | null
+  }
   current_page?: number
   last_page?: number
   per_page?: number

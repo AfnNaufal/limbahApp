@@ -6,6 +6,8 @@ import LogbookDateStrip from './dashboard/LogbookDateStrip'
 import StorageComplianceCard from './dashboard/StorageComplianceCard'
 import TpsCapacityCard from './dashboard/TpsCapacityCard'
 import KpiSparklineRow from './dashboard/KpiSparklineRow'
+import QuickActionsBento from './dashboard/QuickActionsBento'
+import RecentActivitySection from './dashboard/RecentActivitySection'
 import {
   getDashboardSummary,
   getDashboardTrends,
@@ -407,7 +409,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 6. Banner Navigasi ke Dasbor Analitik & Grafik */}
+      {/* 6. Quick Actions Bento Grid */}
+      <QuickActionsBento />
+
+      {/* 7. Recent Activity Logs */}
+      <RecentActivitySection b3List={b3List} domesticList={domesticList} />
+
+      {/* 8. Banner Navigasi ke Dasbor Analitik & Grafik */}
       <div
         style={{
           background: `linear-gradient(135deg, ${tokens.card}, ${tokens.bgSecondary})`,
