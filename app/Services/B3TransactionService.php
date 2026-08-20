@@ -25,7 +25,7 @@ class B3TransactionService
             }
 
             if (auth()->check()) {
-                $data['created_by'] = $data['created_by'] ?? auth()->id();
+                $data['created_by'] = auth()->id() ?? $data['created_by'] ?? null;
             }
 
             $transaction = B3Transaction::create($data);
@@ -68,7 +68,7 @@ class B3TransactionService
             }
 
             if (auth()->check()) {
-                $data['updated_by'] = $data['updated_by'] ?? auth()->id();
+                $data['updated_by'] = auth()->id() ?? $data['updated_by'] ?? null;
             }
 
             $transaction->update($data);

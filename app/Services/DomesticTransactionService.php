@@ -17,7 +17,7 @@ class DomesticTransactionService
     {
         return DB::transaction(function () use ($data) {
             if (auth()->check()) {
-                $data['created_by'] = $data['created_by'] ?? auth()->id();
+                $data['created_by'] = auth()->id() ?? $data['created_by'] ?? null;
             }
 
             $transaction = DomesticTransaction::create($data);
@@ -51,7 +51,7 @@ class DomesticTransactionService
     {
         return DB::transaction(function () use ($transaction, $data) {
             if (auth()->check()) {
-                $data['updated_by'] = $data['updated_by'] ?? auth()->id();
+                $data['updated_by'] = auth()->id() ?? $data['updated_by'] ?? null;
             }
 
             $transaction->update($data);
